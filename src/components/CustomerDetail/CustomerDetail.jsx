@@ -304,7 +304,7 @@ console.log("order created" , order)
                 font-size: 12px;
                 margin: 3rem 0;
                 padding: 0;
-                width: 48mm;
+                width: 76mm;
               }
               table {
                 width: 94%;
@@ -514,25 +514,22 @@ console.log("order created" , order)
             onError={() => setLogoAvailable(false)}
           />
         )}
-        {/* <h1 style={{ textAlign: "center", margin: 0, fontSize: "35px" }}>
+        <h1 style={{ textAlign: "center", marginTop: ".5rem", fontSize: "32px" }}>
          Chicago Delight's
-        </h1> */}
+        </h1>
         <p
           style={{
             textAlign: "center",
-            marginTop: "1rem",
+            marginTop: 0,
             fontSize: "14px",
             padding: "0 2px",
           }}
         >
-          Opposite Swaraj Agency,
+          Opposite Swaraj Agency Kurukshetra,
           <br />
-          Kurukshetra Road,
+         Road  Pehowa(136-128),
           <br />
-          Pehowa(136-128),
-          <br />
-          98966-42812 <br />
-          90340-62812
+          98966-42812  90340-62812
         </p>
         <hr />
         <h2 style={{ textAlign: "center", margin: 0, fontSize: "20px" }}>
@@ -641,7 +638,7 @@ console.log("order created" , order)
           style={{
             textAlign: "center",
             fontSize: "15px",
-            padding: "2rem 0",
+            padding: "1rem 0",
           }}
         >
           Thank You Visit Again!
