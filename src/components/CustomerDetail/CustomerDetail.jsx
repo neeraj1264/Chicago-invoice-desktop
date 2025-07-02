@@ -319,7 +319,7 @@ console.log("order created" , order)
             <title>KOT</title>
             <style>
             @page {
-    size: 76mm;
+    size: 80mm * 148mm;
     margin: 0;
   }
     
@@ -328,7 +328,7 @@ console.log("order created" , order)
                 font-size: 12px;
                 margin: 0;
                 padding: .4rem;
-                width: 76mm;
+                width: 80mm * 148mm;
                 border: 2px dotted;
               }
               table {
