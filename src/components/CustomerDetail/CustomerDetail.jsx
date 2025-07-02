@@ -39,6 +39,8 @@ const CustomerDetail = () => {
   const [discountAmount, setDiscountAmount] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
 
+  const [billNumber, setBillNumber] = useState("");
+
   const invoiceRef = useRef(); // Reference to the hidden invoice content
   const navigate = useNavigate();
 
@@ -193,6 +195,21 @@ const CustomerDetail = () => {
     navigate(-1);
   };
 
+    const generateNextBillNo = ()=>{
+    const today = new Date().toLocaleDateString("en-GB");       // "dd/mm/yyyy"
+    const storedDate = localStorage.getItem("billDate");
+    let nextNo = 51;
+
+    if (storedDate === today) {
+      nextNo = parseInt(localStorage.getItem("lastBillNo") || "0", 10) + 1;
+    }
+
+    localStorage.setItem("billDate", today);
+    localStorage.setItem("lastBillNo", nextNo);
+
+    return nextNo.toString().padStart(4, "0");
+}
+
   const handleSendClick = async () => {
     const { discountValue, netTotal } = computeTotals();
 
@@ -201,6 +218,8 @@ const CustomerDetail = () => {
       toast.error("Please add product before proceed", toastOptions);
       return; // Exit the function early
     }
+    const no = generateNextBillNo();
+    setBillNumber(no);
 
     setShowPopup(true);
 
@@ -302,9 +321,10 @@ console.log("order created" , order)
               body {
                 font-family: Arial, sans-serif;
                 font-size: 12px;
-                margin: 3rem 0;
-                padding: 0;
+                margin: .4rem;
+                padding: .4rem;
                 width: 76mm;
+                border: 2px dotted;
               }
               table {
                 width: 94%;
@@ -336,7 +356,7 @@ console.log("order created" , order)
               }
               .logo {
                 display: flex;
-                margin: auto;
+                margin: 3px auto;
               }
               .logo img {
                 width: 40px;
@@ -514,14 +534,14 @@ console.log("order created" , order)
             onError={() => setLogoAvailable(false)}
           />
         )}
-        <h1 style={{ textAlign: "center", marginTop: ".5rem", fontSize: "32px" }}>
+        <h1 style={{ textAlign: "center", margin: ".5rem", fontSize: "30px" }}>
          Chicago Delight's
         </h1>
         <p
           style={{
             textAlign: "center",
             marginTop: 0,
-            fontSize: "14px",
+            fontSize: "15px",
             padding: "0 2px",
           }}
         >
@@ -536,15 +556,12 @@ console.log("order created" , order)
           Invoice Details
         </h2>
         <div className="customer-info">
-          <p style={{ fontSize: "12px", margin: "0" }}>
-            Bill No:&nbsp;&nbsp;
-            {`#${Math.floor(1000 + Math.random() * 9000)}`}{" "}
-            {/* Random 6-digit bill number */}
+          <p style={{ fontSize: "16px", margin: "0" }}>
+            Bill No:&nbsp;&nbsp; <span style={{fontWeight: "bold"}}>#{billNumber}</span></p>
+          <p style={{ fontSize: "16px", margin: "0" }}>
+            OrderType&nbsp;:&nbsp;&nbsp; <span style={{fontWeight: "bold"}}>{orderType}</span>
           </p>
-          <p style={{ fontSize: "12px", margin: "0" }}>
-            OrderType&nbsp;:&nbsp;&nbsp; {orderType}
-          </p>
-          <p style={{ fontSize: "12px", margin: "0" }}>
+          <p style={{ fontSize: "16px", margin: "0" }}>
             Date:&nbsp;&nbsp;&nbsp;&nbsp;
             {new Date().toLocaleDateString("en-GB", {
               day: "2-digit",
@@ -561,42 +578,42 @@ console.log("order created" , order)
           </p>
 
           {customerName && (
-            <p style={{ fontSize: "12px", margin: "0" }}>
+            <p style={{ fontSize: "16px", margin: "0" }}>
               Customer&nbsp;:&nbsp;{customerName}
             </p>
           )}
           {customerPhone && (
-            <p style={{ fontSize: "12px", margin: "0" }}>
+            <p style={{ fontSize: "16px", margin: "0" }}>
               Phone&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
               {customerPhone}
             </p>
           )}
           {customerAddress && (
-            <p style={{ fontSize: "12px", margin: "0 0 1rem 0" }}>
+            <p style={{ fontSize: "16px", margin: "0 0 1rem 0" }}>
               Address&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;{customerAddress}
             </p>
           )}
         </div>
         <table>
           <thead>
-            <tr className="productname">
-              <th>Item</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Total</th>
+            <tr style={{background: "darkgrey"}}>
+              <th style={{fontSize: "16px"}}>Item</th>
+              <th style={{fontSize: "16px"}}>Qty</th>
+              <th style={{fontSize: "16px"}}>Price</th>
+              <th style={{fontSize: "16px"}}>Total</th>
             </tr>
           </thead>
           <tbody>
             {productsToSend.map((product, index) => (
               <tr key={index} className="productdetail">
-                <td>
+                <td style={{fontSize: "15px"}}>
                   {product.size
                     ? `${product.name} (${product.size})`
                     : product.name}
                 </td>
-                <td style={{ textAlign: "Center" }}>{product.quantity || 1}</td>
-                <td style={{ textAlign: "Center" }}>₹{product.price}</td>
-                <td style={{ textAlign: "Center" }}>
+                <td style={{ textAlign: "Center" , fontSize: "15px" }}>{product.quantity || 1}</td>
+                <td style={{ textAlign: "Center" , fontSize: "15px" }}>₹{product.price}</td>
+                <td style={{ textAlign: "Center" , fontSize: "15px" }}>
                   ₹{product.price * (product.quantity || 1)}
                 </td>
               </tr>
@@ -643,8 +660,6 @@ console.log("order created" , order)
         >
           Thank You Visit Again!
         </div>
-        <hr />
-        <hr />
       </div>
       <div className="invoice-btn">
         <button
