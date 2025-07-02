@@ -318,10 +318,15 @@ console.log("order created" , order)
           <head>
             <title>KOT</title>
             <style>
+            @page {
+    size: 76mm;
+    margin: 0;
+  }
+    
               body {
                 font-family: Arial, sans-serif;
                 font-size: 12px;
-                margin: .4rem;
+                margin: 0;
                 padding: .4rem;
                 width: 76mm;
                 border: 2px dotted;
