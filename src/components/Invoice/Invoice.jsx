@@ -29,7 +29,30 @@ const toastOptions = {
   theme: "dark",
   width: "90%",
 };
+const BOGO_ELIGIBLE_PRODUCTS = {
+  "Italian sweet": ["med", "large"],
+  "Heat 'n' sweet": ["med", "large"],
+  "Hot stuff": ["med", "large"],
+  "Garlic to hot": ["med", "large"],
+  "Four season": ["med", "large"],
+  "Super spicy": ["med", "large"],
+  "Love in box (heart shape)": ["med", "large"],
+  "Cheese pizza": ["med", "large"],
+  "Chicago's spl. paneer": ["med", "large"],
+  "Peri peri boom": ["med", "large"],
+  "Mughlai retreat": ["med", "large"],
+  "Karahi paneer pizza": ["med", "large"],
+  "Makhni supreme": ["med", "large"],
+  "7 veggies": ["med", "large"],
+  "Mexicana overload": ["med", "large"],
+  "Tandoori paneer": ["med", "large"],
+  "Cheese pasta pizza": ["med", "large"],
+  "Spicy pasta pizza": ["med", "large"],
+  "Chicago's flood": ["med", "large"],
+  "Bursty cheese pizza": ["med"],
+};
 const Invoice = () => {
+
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productsToSend, setProductsToSend] = useState([]);
   const [Search, setSearch] = useState(""); // State for search query
@@ -70,6 +93,32 @@ const Invoice = () => {
 
   const navigate = useNavigate(); // For navigation
 
+  const [bogoEnabled, setBogoEnabled] = useState(false);
+  const [isThursday, setIsThursday] = useState(false);
+    // Effect to check day of week and automatically enable BOGO on Thursdays
+  useEffect(() => {
+    const checkDay = () => {
+      const today = new Date().getDay(); // Sunday = 0, Monday = 1, ..., Thursday = 4
+      const thursday = 4;
+      setIsThursday(today === thursday);
+      
+      // Automatically enable BOGO on Thursdays
+      if (today === thursday) {
+        setBogoEnabled(true);
+      } else {
+        setBogoEnabled(false);
+      }
+    };
+
+    // Check immediately on load
+    checkDay();
+
+    // Set up interval to check every hour in case the app is left open
+    const interval = setInterval(checkDay, 60 * 60 * 1000); // Check every hour
+    
+    return () => clearInterval(interval);
+  }, []);
+  
   const guardAddProduct = async (e) => {
     e.preventDefault();
     if (isChecking) return;
@@ -333,82 +382,112 @@ const Invoice = () => {
           prod.size === product.size
       );
 
-      if (!exists) {
-        // Add the product if it doesn't already exist
-        setProductsToSend((prev) => {
-          const updatedProducts = [...prev, { ...product, quantity: 1 }];
-          // Update localStorage after setting the state
-          localStorage.setItem(
-            "productsToSend",
-            JSON.stringify(updatedProducts)
-          );
-          return updatedProducts;
-        });
-      } else {
-        // Update quantity if the product already exists
-        setProductsToSend((prev) => {
-          const updatedProducts = prev.map((prod) =>
+      setProductsToSend((prev) => {
+        let updated = [];
+        if (!exists) {
+          updated = [...prev, { ...product, quantity: 1, isFree: false }];
+        } else {
+          updated = prev.map((prod) =>
             prod.name === product.name &&
             prod.price === product.price &&
             prod.size === product.size
               ? { ...prod, quantity: prod.quantity + 1 }
               : prod
           );
-          // Update localStorage after setting the state
-          localStorage.setItem(
-            "productsToSend",
-            JSON.stringify(updatedProducts)
-          );
-          return updatedProducts;
-        });
-      }
+        }
+
+        // NEW: Apply BOGO logic for non-variety products
+        if (bogoEnabled) {
+          // Check if product is eligible
+          if (BOGO_ELIGIBLE_PRODUCTS[product.name]) {
+            // Check if free item already exists
+            const freeExists = updated.some(
+              (p) =>
+                p.name === product.name && p.size === product.size && p.isFree
+            );
+
+            // Add free item if it doesn't exist
+            if (!freeExists) {
+              updated.push({
+                ...product,
+                price: 0,
+                originalPrice: product.price,
+                isFree: true,
+                quantity: 1,
+              });
+            }
+          }
+        }
+
+        localStorage.setItem("productsToSend", JSON.stringify(updated));
+        return updated;
+      });
       return;
     }
 
-    // Handle products with selected varieties
+    // Handle products with varieties
     const newProducts = selectedVarieties.map((variety) => ({
       ...product,
       ...variety,
-      quantity: variety.quantity || 0, // Default quantity for each variety
+      quantity: variety.quantity || 1,
+      isFree: false,
     }));
 
     setProductsToSend((prev) => {
-      let updatedProductsToSend = [...prev];
-
-      newProducts.forEach((newProduct) => {
-        const exists = updatedProductsToSend.some(
-          (prod) =>
-            prod.name === newProduct.name &&
-            prod.price === newProduct.price &&
-            prod.size === newProduct.size
+      let updated = [...prev];
+      newProducts.forEach((newProd) => {
+        const exists = updated.some(
+          (p) =>
+            p.name === newProd.name &&
+            p.price === newProd.price &&
+            p.size === newProd.size
         );
-
-        if (!exists) {
-          updatedProductsToSend.push(newProduct);
-        } else {
-          updatedProductsToSend = updatedProductsToSend.map((prod) =>
-            prod.name === newProduct.name &&
-            prod.price === newProduct.price &&
-            prod.size === newProduct.size
-              ? { ...prod, quantity: newProduct.quantity }
-              : prod
+        if (!exists) updated.push(newProd);
+        else
+          updated = updated.map((p) =>
+            p.name === newProd.name &&
+            p.price === newProd.price &&
+            p.size === newProd.size
+              ? { ...p, quantity: newProd.quantity }
+              : p
           );
-        }
       });
+      // NEW: Apply BOGO logic for variety products
+      if (bogoEnabled) {
+        newProducts.forEach((prod) => {
+          if (BOGO_ELIGIBLE_PRODUCTS[prod.name]) {
+            const eligibleSizes = BOGO_ELIGIBLE_PRODUCTS[prod.name];
+            const size = prod.size?.toLowerCase();
 
-      // Update localStorage after state update
-      localStorage.setItem(
-        "productsToSend",
-        JSON.stringify(updatedProductsToSend)
-      );
+            // Check if this specific size is eligible
+            if (size && eligibleSizes.includes(size)) {
+              // Check if free item already exists
+              const freeItemExists = updated.some(
+                (p) => p.name === prod.name && p.size === prod.size && p.isFree
+              );
 
-      return updatedProductsToSend;
+              // Add free item if it doesn't exist
+              if (!freeItemExists) {
+                updated.push({
+                  ...prod,
+                  price: 0,
+                  originalPrice: prod.price,
+                  isFree: true,
+                  quantity: prod.quantity,
+                });
+              }
+            }
+          }
+        });
+      }
+
+      localStorage.setItem("productsToSend", JSON.stringify(updated));
+      return updated;
     });
 
-    setShowPopup(false); // Close popup
-    setSelectedVariety([]); // Reset selected varieties
+    setShowPopup(false);
+    setSelectedVariety([]);
   };
-
   // Function to handle quantity changes
   const handleQuantityChange = (productName, productPrice, delta) => {
     const updatedProductsToSend = productsToSend
@@ -621,15 +700,7 @@ const Invoice = () => {
     setShowKotModal(false);
   };
 
-  const nonVegCategories = new Set([
-    "Non Veg Pizza",
-    "Chicken_burger",
-    "Non_Veg_Special",
-    "Non_Veg_Soup",
-    "Chicken_Snack",
-    "Non_veg_main",
-    "Tandoori_Non_Veg",
-  ]);
+
 
   return (
     <div>
@@ -650,7 +721,6 @@ const Invoice = () => {
                     key={index}
                     className={`category-btn 
                       ${activeCategory === category ? "active" : ""}
-                      ${nonVegCategories.has(category) ? "non-veg" : ""}
                     `}
                     onClick={() => handleCategoryClick(category)} // Trigger scroll to category
                   >
@@ -801,20 +871,71 @@ const Invoice = () => {
           </div>
         </div>
 
+        {/* BOGO Toggle */}
+        <div
+          className="bogo-toggle"
+          style={{ padding: "1rem", textAlign: "center" }}>
+                                     {isThursday ? (
+
+            <label style={{ fontSize: "1.2rem", marginTop: "5rem" }}>
+              <input
+                type="checkbox"
+                checked={bogoEnabled}
+              onChange={() => {
+              if (isThursday) {
+                setBogoEnabled(!bogoEnabled);
+              } else {
+                toast.error("BOGO offer is only available on Thursdays", toastOptions);
+              }
+            }}
+               disabled={!isThursday}
+            style={{ marginRight: '0.5rem' }}
+          />
+            <div style={{ fontSize: '0.9rem', color: '#4CAF50', marginTop: '5px' }}>
+                            Buy 1 Get 1 Free free pizza
+            </div>
+                        </label>
+          ) : (
+            <div style={{ fontSize: '0.9rem', color: '#ff6b6b', marginTop: '5px' }}>
+            </div>
+          )}
+        </div>
+        
         {productsToSend.length > 0 ? (
           <div className="sample-section">
             <div className="check-container">
               <>
                 <ul className="product-list" id="sample-section">
                   <hr className="hr" />
-                  <li className="product-item" style={{ display: "flex" , fontSize: "1.3rem"}}>
-                    <div style={{ width: "10%", paddingLeft: "10px", fontSize: "1.3rem" }}>
+                  <li
+                    className="product-item"
+                    style={{ display: "flex", fontSize: "1.3rem" }}
+                  >
+                    <div
+                      style={{
+                        width: "10%",
+                        paddingLeft: "10px",
+                        fontSize: "1.3rem",
+                      }}
+                    >
                       <span>No.</span>
                     </div>
-                    <div style={{ width: "50%", textAlign: "center", fontSize: "1.3rem"  }}>
+                    <div
+                      style={{
+                        width: "50%",
+                        textAlign: "center",
+                        fontSize: "1.3rem",
+                      }}
+                    >
                       <span>Name</span>
                     </div>
-                    <div style={{ width: "20%", textAlign: "center", fontSize: "1.3rem"  }}>
+                    <div
+                      style={{
+                        width: "20%",
+                        textAlign: "center",
+                        fontSize: "1.3rem",
+                      }}
+                    >
                       <span>Qty</span>
                     </div>
                     <div
@@ -822,7 +943,7 @@ const Invoice = () => {
                         width: "15%",
                         textAlign: "right",
                         paddingRight: "10px",
-                         fontSize: "1.3rem" 
+                        fontSize: "1.3rem",
                       }}
                     >
                       <span>Price</span>
@@ -836,13 +957,32 @@ const Invoice = () => {
                       className="product-item"
                       style={{ display: "flex" }}
                     >
-                      <div style={{ width: "10%", paddingLeft: "10px", fontSize: "1.3rem"  }}>
+                      <div
+                        style={{
+                          width: "10%",
+                          paddingLeft: "10px",
+                          fontSize: "1.3rem",
+                        }}
+                      >
                         <span>{index + 1}.</span>
                       </div>
-                      <div style={{ width: "50%", fontSize: "1.3rem"  }}>
-                        <span>{product.name}</span>
+                      <div style={{ width: "50%", fontSize: "1.3rem" }}>
+                        <span>
+                          {product.name}
+                          {product.size ? ` (${product.size})` : ""}
+                            {/* Add FREE label here if it's a free item */}
+        {product.isFree && (
+          <span className="free-label"> (FREE)</span>
+        )}
+                        </span>
                       </div>
-                      <div style={{ width: "20%", textAlign: "center", fontSize: "1.3rem" }}>
+                      <div
+                        style={{
+                          width: "20%",
+                          textAlign: "center",
+                          fontSize: "1.3rem",
+                        }}
+                      >
                         <div className="quantity-btn">
                           <button
                             className="icon"
@@ -857,7 +997,9 @@ const Invoice = () => {
                           >
                             <FaMinusCircle />
                           </button>
-                          <span style={{fontSize: "1.3rem"}}>{product.quantity}</span>
+                          <span style={{ fontSize: "1.3rem" }}>
+                            {product.quantity}
+                          </span>
                           <button
                             className="icon"
                             onClick={() =>
@@ -877,10 +1019,16 @@ const Invoice = () => {
                           width: "15%",
                           textAlign: "right",
                           paddingRight: "10px",
-                          fontSize: "1.3rem"
+                          fontSize: "1.3rem",
                         }}
                       >
-                        <span>{product.price * product.quantity}</span>
+                        <div>
+                          {product.isFreeBogo ? (
+                            <span className="free-label">FREE</span>
+                          ) : (
+                            `${product.price * product.quantity}`
+                          )}
+                        </div>
                       </div>
                     </li>
                   ))}
@@ -892,7 +1040,7 @@ const Invoice = () => {
                         width: "77%",
                         textAlign: "center",
                         fontWeight: 800,
-                        fontSize: "1.3rem" 
+                        fontSize: "1.3rem",
                       }}
                     >
                       <span>Total</span>
@@ -904,7 +1052,9 @@ const Invoice = () => {
                         fontWeight: 900,
                       }}
                     >
-                      <span style={{fontSize: "1.3rem"}}>{calculateTotalPrice(productsToSend)}</span>
+                      <span style={{ fontSize: "1.3rem" }}>
+                        {calculateTotalPrice(productsToSend)}
+                      </span>
                     </div>
                     <div
                       style={{

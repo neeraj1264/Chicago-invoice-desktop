@@ -195,8 +195,8 @@ const CustomerDetail = () => {
     navigate(-1);
   };
 
-    const generateNextBillNo = ()=>{
-    const today = new Date().toLocaleDateString("en-GB");       // "dd/mm/yyyy"
+  const generateNextBillNo = () => {
+    const today = new Date().toLocaleDateString("en-GB"); // "dd/mm/yyyy"
     const storedDate = localStorage.getItem("billDate");
     let nextNo = 51;
 
@@ -208,7 +208,7 @@ const CustomerDetail = () => {
     localStorage.setItem("lastBillNo", nextNo);
 
     return nextNo.toString().padStart(4, "0");
-}
+  };
 
   const handleSendClick = async () => {
     const { discountValue, netTotal } = computeTotals();
@@ -241,7 +241,7 @@ const CustomerDetail = () => {
       discount: discountAmount,
       timestamp: new Date().toISOString(),
     };
-console.log("order created" , order)
+    console.log("order created", order);
     const customerDataObject = {
       id: orderId,
       name: customerName,
@@ -318,21 +318,13 @@ console.log("order created" , order)
           <head>
             <title>KOT</title>
             <style>
-            @page {
-    size: 80mm * 148mm;
-    margin: 0;
-  }
-    
-              body {
+                body {
                 font-family: Arial, sans-serif;
                 font-size: 12px;
-                margin: 0;
-                padding: .4rem;
-                width: 80mm * 148mm;
-                border: 2px dotted;
+                width: 76mm;
               }
               table {
-                width: 94%;
+                width: 90%;
                 border-collapse: collapse;
               }
               th, td {
@@ -530,140 +522,152 @@ console.log("order created" , order)
         ref={invoiceRef}
         style={{ display: "none" }}
       >
-        {logoAvailable && (
-          <img
-            src="/logo.jpg"
-            alt="Logo5"
-            width={150}
-            className="logo"
-            onError={() => setLogoAvailable(false)}
-          />
-        )}
-        <h1 style={{ textAlign: "center", margin: ".5rem", fontSize: "30px" }}>
-         Chicago Delight's
-        </h1>
-        <p
-          style={{
-            textAlign: "center",
-            marginTop: 0,
-            fontSize: "15px",
-            padding: "0 2px",
-          }}
-        >
-          Opposite Swaraj Agency Kurukshetra,
-          <br />
-         Road  Pehowa(136-128),
-          <br />
-          98966-42812  90340-62812
-        </p>
-        <hr />
-        <h2 style={{ textAlign: "center", margin: 0, fontSize: "20px" }}>
-          Invoice Details
-        </h2>
-        <div className="customer-info">
-          <p style={{ fontSize: "16px", margin: "0" }}>
-            Bill No:&nbsp;&nbsp; <span style={{fontWeight: "bold"}}>#{billNumber}</span></p>
-          <p style={{ fontSize: "16px", margin: "0" }}>
-            OrderType&nbsp;:&nbsp;&nbsp; <span style={{fontWeight: "bold"}}>{orderType}</span>
+        <div style={{ border: "2px dotted", margin: "0 0 5px 0", padding: ".4rem" }}>
+          {logoAvailable && (
+            <img
+              src="/logo.jpg"
+              alt="Logo5"
+              width={150}
+              className="logo"
+              onError={() => setLogoAvailable(false)}
+            />
+          )}
+          <h1
+            style={{ textAlign: "center", margin: ".5rem", fontSize: "30px" }}
+          >
+            Chicago Delight's
+          </h1>
+          <p
+            style={{
+              textAlign: "center",
+              marginTop: 0,
+              fontSize: "15px",
+              padding: "0 2px",
+            }}
+          >
+            Opposite Swaraj Agency Kurukshetra,
+            <br />
+            Road Pehowa(136-128),
+            <br />
+            98966-42812 90340-62812
           </p>
-          <p style={{ fontSize: "16px", margin: "0" }}>
-            Date:&nbsp;&nbsp;&nbsp;&nbsp;
-            {new Date().toLocaleDateString("en-GB", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            }) +
-              " " +
-              new Date().toLocaleTimeString("en-GB", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true, // Enables 12-hour format
-              })}
-          </p>
-
-          {customerName && (
+          <hr />
+          <h2 style={{ textAlign: "center", margin: 0, fontSize: "20px" }}>
+            Invoice Details
+          </h2>
+          <div className="customer-info">
             <p style={{ fontSize: "16px", margin: "0" }}>
-              Customer&nbsp;:&nbsp;{customerName}
+              Bill No:&nbsp;&nbsp;{" "}
+              <span style={{ fontWeight: "bold" }}>#{billNumber}</span>
             </p>
-          )}
-          {customerPhone && (
             <p style={{ fontSize: "16px", margin: "0" }}>
-              Phone&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-              {customerPhone}
+              OrderType&nbsp;:&nbsp;&nbsp;{" "}
+              <span style={{ fontWeight: "bold" }}>{orderType}</span>
             </p>
-          )}
-          {customerAddress && (
-            <p style={{ fontSize: "16px", margin: "0 0 1rem 0" }}>
-              Address&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;{customerAddress}
+            <p style={{ fontSize: "16px", margin: "0" }}>
+              Date:&nbsp;&nbsp;&nbsp;&nbsp;
+              {new Date().toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              }) +
+                " " +
+                new Date().toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true, // Enables 12-hour format
+                })}
             </p>
-          )}
-        </div>
-        <table>
-          <thead>
-            <tr style={{background: "darkgrey"}}>
-              <th style={{fontSize: "16px"}}>Item</th>
-              <th style={{fontSize: "16px"}}>Qty</th>
-              <th style={{fontSize: "16px"}}>Price</th>
-              <th style={{fontSize: "16px"}}>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {productsToSend.map((product, index) => (
-              <tr key={index} className="productdetail">
-                <td style={{fontSize: "15px"}}>
-                  {product.size
-                    ? `${product.name} (${product.size})`
-                    : product.name}
-                </td>
-                <td style={{ textAlign: "Center" , fontSize: "15px" }}>{product.quantity || 1}</td>
-                <td style={{ textAlign: "Center" , fontSize: "15px" }}>₹{product.price}</td>
-                <td style={{ textAlign: "Center" , fontSize: "15px" }}>
-                  ₹{product.price * (product.quantity || 1)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {getdeliverycharge !== 0 && (
-          <>
-            <div className="total">
-              <p style={{ margin: "1rem 0 0 0" }}>Item Total </p>
 
-              <p style={{ margin: "0" }}>
-                ₹
-                {productsToSend
-                  .reduce(
-                    (sum, product) =>
-                      sum + product.price * (product.quantity || 1),
-                    0
-                  )
-                  .toFixed(2)}
+            {customerName && (
+              <p style={{ fontSize: "16px", margin: "0" }}>
+                Customer&nbsp;:&nbsp;{customerName}
               </p>
-            </div>
-            <div className="total">
-              <p style={{ margin: "0" }}>Service Charge:</p>
-              <p style={{ margin: "0" }}>+{getdeliverycharge.toFixed(2)}</p>
-            </div>
-          </>
-        )}
-        {(discountAmount > 0 || discountPercent > 0) && (
-          <div className="total">
-            <p style={{ margin: 0 }}>
-              Discount: {discountPercent > 0 && ` (${discountPercent}%)`}
-            </p>
-            <p style={{ margin: "0" }}>–{discountValue.toFixed(2)}</p>
+            )}
+            {customerPhone && (
+              <p style={{ fontSize: "16px", margin: "0" }}>
+                Phone&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                {customerPhone}
+              </p>
+            )}
+            {customerAddress && (
+              <p style={{ fontSize: "16px", margin: "0 0 1rem 0" }}>
+                Address&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;{customerAddress}
+              </p>
+            )}
           </div>
-        )}
-        <p className="totalAmount">Net Total: ₹{netTotal.toFixed(2)}</p> <hr />
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: "15px",
-            padding: "1rem 0",
-          }}
-        >
-          Thank You Visit Again!
+          <table>
+            <thead>
+              <tr style={{ background: "darkgrey" }}>
+                <th style={{ fontSize: "16px" }}>Item</th>
+                <th style={{ fontSize: "16px" }}>Qty</th>
+                <th style={{ fontSize: "16px" }}>Price</th>
+                <th style={{ fontSize: "16px" }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productsToSend.map((product, index) => (
+                <tr key={index} className="productdetail">
+                  <td style={{ fontSize: "15px" }}>
+                    {product.size
+                      ? `${product.name} (${product.size})`
+                      : product.name}
+                  </td>
+                  <td style={{ textAlign: "Center", fontSize: "15px" }}>
+                    {product.quantity || 1}
+                  </td>
+                  <td style={{ textAlign: "Center", fontSize: "15px" }}>
+                    ₹{product.price}
+                  </td>
+                  <td style={{ textAlign: "Center", fontSize: "15px" }}>
+                    ₹{product.price * (product.quantity || 1)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {getdeliverycharge !== 0 && (
+            <>
+              <div className="total">
+                <p style={{ margin: "1rem 0 0 0" }}>Item Total </p>
+
+                <p style={{ margin: "0" }}>
+                  ₹
+                  {productsToSend
+                    .reduce(
+                      (sum, product) =>
+                        sum + product.price * (product.quantity || 1),
+                      0
+                    )
+                    .toFixed(2)}
+                </p>
+              </div>
+              <div className="total">
+                <p style={{ margin: "0" }}>Service Charge:</p>
+                <p style={{ margin: "0" }}>+{getdeliverycharge.toFixed(2)}</p>
+              </div>
+            </>
+          )}
+          {(discountAmount > 0 || discountPercent > 0) && (
+            <div className="total">
+              <p style={{ margin: 0 }}>
+                Discount: {discountPercent > 0 && ` (${discountPercent}%)`}
+              </p>
+              <p style={{ margin: "0" }}>–{discountValue.toFixed(2)}</p>
+            </div>
+          )}
+          <p className="totalAmount">Net Total: ₹{netTotal.toFixed(2)}</p>{" "}
+          <hr />
+          <div
+            style={{
+              textAlign: "center",
+              fontSize: "15px",
+              padding: "1rem 0",
+            }}
+          >
+            Thank You Visit Again!
+          </div>
         </div>
       </div>
       <div className="invoice-btn">
