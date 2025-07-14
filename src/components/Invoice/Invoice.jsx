@@ -10,6 +10,7 @@ import {
   FaTimesCircle,
   FaSearch,
   FaEdit,
+  FaShoppingCart,
 } from "react-icons/fa";
 // import { AiOutlineBars } from "react-icons/ai";
 import { IoMdCloseCircle } from "react-icons/io";
@@ -52,7 +53,6 @@ const BOGO_ELIGIBLE_PRODUCTS = {
   "Bursty cheese pizza": ["med"],
 };
 const Invoice = () => {
-
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productsToSend, setProductsToSend] = useState([]);
   const [Search, setSearch] = useState(""); // State for search query
@@ -62,7 +62,6 @@ const Invoice = () => {
   const [loading, setLoading] = useState(true);
   const [isCategoryVisible, setIsCategoryVisible] = useState(false);
   const [activeCategory, setActiveCategory] = useState("");
-
   const { isOnline, checkBackend } = useOnlineStatus();
   const [isChecking, setIsChecking] = useState(false);
 
@@ -95,13 +94,13 @@ const Invoice = () => {
 
   const [bogoEnabled, setBogoEnabled] = useState(false);
   const [isThursday, setIsThursday] = useState(false);
-    // Effect to check day of week and automatically enable BOGO on Thursdays
+  // Effect to check day of week and automatically enable BOGO on Thursdays
   useEffect(() => {
     const checkDay = () => {
       const today = new Date().getDay(); // Sunday = 0, Monday = 1, ..., Thursday = 4
       const thursday = 4;
       setIsThursday(today === thursday);
-      
+
       // Automatically enable BOGO on Thursdays
       if (today === thursday) {
         setBogoEnabled(true);
@@ -115,10 +114,10 @@ const Invoice = () => {
 
     // Set up interval to check every hour in case the app is left open
     const interval = setInterval(checkDay, 60 * 60 * 1000); // Check every hour
-    
+
     return () => clearInterval(interval);
   }, []);
-  
+
   const guardAddProduct = async (e) => {
     e.preventDefault();
     if (isChecking) return;
@@ -169,15 +168,6 @@ const Invoice = () => {
     return `${hours}:${minutes}:${seconds}`;
   };
 
-  const [showRemoveBtn, setShowRemoveBtn] = useState(false);
-  let pressTimer;
-
-  const handlePressStart = () => {
-    // Set a timeout to show the remove button after 1 second (1000 ms)
-    pressTimer = setTimeout(() => {
-      setShowRemoveBtn(true);
-    }, 1000);
-  };
 
   const handlePressEnd = () => {
     // Clear the timeout if the user releases the press before 1 second
@@ -306,13 +296,12 @@ const Invoice = () => {
       handleAddToWhatsApp(product); // Directly add product if no varieties
     }
   };
+  const handleProductClick = (product) => {
+    const audio = new Audio("/sounds/click.wav"); // path from public folder
+    audio.play();
+    handleOpenPopup(product);
+  };
 
-  // useEffect(() => {
-  //   // Reset selectedVariety on popup close or when a new product is selected
-  //   setSelectedVariety([]);
-  // }, [showPopup]);
-
-  // Save selectedVariety to localStorage whenever it changes
   useEffect(() => {
     if (selectedVariety.length > 0) {
       localStorage.setItem("selectedVariety", JSON.stringify(selectedVariety));
@@ -700,8 +689,6 @@ const Invoice = () => {
     setShowKotModal(false);
   };
 
-
-
   return (
     <div>
       <ToastContainer />
@@ -711,25 +698,27 @@ const Invoice = () => {
         onClick={toggleCategoryVisibility}
       />
       <div className="invoice-container">
-        <div className="category-barr">
-          <div className="category-b">
-            <div className="category-bar">
-              {Object.keys(filteredProducts)
-                .sort((a, b) => a.localeCompare(b))
-                .map((category, index) => (
-                  <button
-                    key={index}
-                    className={`category-btn 
+        {isCategoryVisible && (
+          <div className="category-barr">
+            <div className="category-b">
+              <div className="category-bar">
+                {Object.keys(filteredProducts)
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((category, index) => (
+                    <button
+                      key={index}
+                      className={`category-btn 
                       ${activeCategory === category ? "active" : ""}
                     `}
-                    onClick={() => handleCategoryClick(category)} // Trigger scroll to category
-                  >
-                    {category}
-                  </button>
-                ))}
+                      onClick={() => handleCategoryClick(category)} // Trigger scroll to category
+                    >
+                      {category}
+                    </button>
+                  ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
         <div className="main-section">
           <div className="main">
             {loading ? (
@@ -742,128 +731,79 @@ const Invoice = () => {
               Object.keys(filteredProducts)
                 .sort((a, b) => a.localeCompare(b)) // Sort category names alphabetically
                 .map((category, index) => (
-                  <div key={index} className="category-container">
+                  <>
+                                  <div key={category} className="category-block">
+
                     <h2 className="category" id={category}>
                       {category}
                     </h2>
-                    {filteredProducts[category]
-                      .sort((a, b) => a.price - b.price) // Sort products by price in ascending order
-                      .map((product, idx) => (
-                        <>
-                          <hr />
-                          <div>
-                            <div key={idx} className="main-box">
-                              {/* <div className="img-box">
-                          {product.image ? (
-                            <img
-                              src={product.image}
-                              alt={product.name}
-                              style={{ width: "3rem", height: "3rem" }}
-                            />
-                          ) : (
-                            <FaImage
-                              style={{ width: "3rem", height: "3rem" }}
-                            />
-                          )}
-                        </div> */}
 
-                              <div
-                                className="sub-box"
-                                onMouseDown={handlePressStart}
-                                onMouseUp={handlePressEnd}
-                                onTouchStart={handlePressStart}
-                                onTouchEnd={handlePressEnd}
-                              >
-                                <h4 className="p-name">
-                                  {product.name}
-                                  {product.varieties &&
-                                  Array.isArray(product.varieties) &&
-                                  product.varieties[0]?.size
-                                    ? ` (${product.varieties[0].size})`
-                                    : ""}
-                                </h4>
-                                <p className="p-name-price">
-                                  Rs.{" "}
-                                  {product.price
-                                    ? product.price.toFixed(2) // Use product price if it exists
-                                    : product.varieties.length > 0
-                                    ? product.varieties[0].price.toFixed(2) // Fallback to first variety price
-                                    : "N/A"}{" "}
-                                  {/* Handle case when neither price nor varieties are available */}
-                                  {showRemoveBtn && (
-                                    <span
-                                      className="remove-btn"
-                                      onClick={() =>
-                                        handleRemoveProduct(
-                                          product.name,
-                                          product.price
-                                        )
-                                      }
-                                    >
-                                      <FaTimesCircle />
-                                    </span>
-                                  )}
-                                </p>
-                              </div>
+                    <div key={index} className="category-container">
+                      {filteredProducts[category]
+                        .sort((a, b) => a.price - b.price) // Sort products by price in ascending order
+                        .map((product, idx) => {
+                          const isSelected = productsToSend.some(
+                            (p) =>
+                              p.name === product.name &&
+                              (!product.varieties?.length ||
+                                product.varieties.some(
+                                  (v) =>
+                                    v.price === p.price && v.size === p.size
+                                ))
+                          );
 
-                              {productsToSend.some(
-                                (prod) =>
-                                  prod.name === product.name &&
-                                  prod.price === product.price
-                              ) ? (
-                                <div className="quantity-btns">
-                                  <button
-                                    className="icons"
-                                    onClick={() =>
-                                      handleQuantityChange(
-                                        product.name,
-                                        product.price,
-                                        -1
-                                      )
-                                    }
+                          return (
+                            <>
+                                <div
+                                  key={idx}
+                                  className={`main-box ${
+                                  isSelected ? "highlighted" : ""
+                                }`}
+                                  onClick={() => handleProductClick(product)}
+                                >
+                                  <div
+                                    className="sub-box"
+                                    style={{ position: "relative" }}
                                   >
-                                    <FaMinusCircle />
-                                  </button>
-                                  <span style={{ margin: "0 .4rem" }}>
-                                    {productsToSend.find(
-                                      (prod) =>
-                                        prod.name === product.name &&
-                                        prod.price === product.price
-                                    )?.quantity || 1}
-                                  </span>
-                                  <button
-                                    className="icons"
-                                    onClick={() =>
-                                      handleQuantityChange(
-                                        product.name,
-                                        product.price,
-                                        1
-                                      )
-                                    }
-                                  >
-                                    <FaPlusCircle />
-                                  </button>
+                                    <h4 className="p-name">
+                                      {product.name}
+                                      {product.varieties &&
+                                      Array.isArray(product.varieties) &&
+                                      product.varieties[0]?.size
+                                        ? ` (${product.varieties[0].size})`
+                                        : ""}
+                                    </h4>
+                                    <p className="p-name-price">
+                                      Rs.{" "}
+                                      {product.price
+                                        ? product.price.toFixed(2) // Use product price if it exists
+                                        : product.varieties.length > 0
+                                        ? product.varieties[0].price.toFixed(2) // Fallback to first variety price
+                                        : "N/A"}{" "}
+                                      {/* Handle case when neither price nor varieties are available */}
+                                    </p>
+                                  </div>
+                                  {productsToSend
+                                    .filter(
+                                      (prod) => prod.name === product.name
+                                    )
+                                    .map((prod, i) => (
+                                      <span key={i} className="quantity-badge">
+                                        <span>
+                                          <FaShoppingCart
+                                            style={{ marginRight: "4px" }}
+                                          />
+                                          {prod.quantity}
+                                        </span>
+                                      </span>
+                                    ))}
                                 </div>
-                              ) : (
-                                <div className="btn-box">
-                                  <button
-                                    onClick={() => handleOpenPopup(product)}
-                                    className="add-btn"
-                                  >
-                                    Add
-                                  </button>
-                                  {product.varieties?.length > 0 && (
-                                    <span className="customise-text">
-                                      Customise
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </>
-                      ))}
-                  </div>
+                            </>
+                          );
+                        })}
+                    </div>
+                    </div>
+                  </>
                 ))
             ) : (
               <div className="no-data">No data available</div>
@@ -874,33 +814,43 @@ const Invoice = () => {
         {/* BOGO Toggle */}
         <div
           className="bogo-toggle"
-          style={{ padding: "1rem", textAlign: "center" }}>
-                                     {isThursday ? (
-
+          style={{ padding: "1rem", textAlign: "center" }}
+        >
+          {isThursday ? (
             <label style={{ fontSize: "1.2rem", marginTop: "5rem" }}>
               <input
                 type="checkbox"
                 checked={bogoEnabled}
-              onChange={() => {
-              if (isThursday) {
-                setBogoEnabled(!bogoEnabled);
-              } else {
-                toast.error("BOGO offer is only available on Thursdays", toastOptions);
-              }
-            }}
-               disabled={!isThursday}
-            style={{ marginRight: '0.5rem' }}
-          />
-            <div style={{ fontSize: '0.9rem', color: '#4CAF50', marginTop: '5px' }}>
-                            Buy 1 Get 1 Free free pizza
-            </div>
-                        </label>
+                onChange={() => {
+                  if (isThursday) {
+                    setBogoEnabled(!bogoEnabled);
+                  } else {
+                    toast.error(
+                      "BOGO offer is only available on Thursdays",
+                      toastOptions
+                    );
+                  }
+                }}
+                disabled={!isThursday}
+                style={{ marginRight: "0.5rem" }}
+              />
+              <div
+                style={{
+                  fontSize: "0.9rem",
+                  color: "#4CAF50",
+                  marginTop: "5px",
+                }}
+              >
+                Buy 1 Get 1 Free free pizza
+              </div>
+            </label>
           ) : (
-            <div style={{ fontSize: '0.9rem', color: '#ff6b6b', marginTop: '5px' }}>
-            </div>
+            <div
+              style={{ fontSize: "0.9rem", color: "#ff6b6b", marginTop: "5px" }}
+            ></div>
           )}
         </div>
-        
+
         {productsToSend.length > 0 ? (
           <div className="sample-section">
             <div className="check-container">
@@ -909,13 +859,12 @@ const Invoice = () => {
                   <hr className="hr" />
                   <li
                     className="product-item"
-                    style={{ display: "flex", fontSize: "1.3rem" }}
+                    style={{ display: "flex"}}
                   >
                     <div
                       style={{
                         width: "10%",
                         paddingLeft: "10px",
-                        fontSize: "1.3rem",
                       }}
                     >
                       <span>No.</span>
@@ -924,16 +873,14 @@ const Invoice = () => {
                       style={{
                         width: "50%",
                         textAlign: "center",
-                        fontSize: "1.3rem",
                       }}
                     >
                       <span>Name</span>
                     </div>
                     <div
                       style={{
-                        width: "20%",
+                        width: "25%",
                         textAlign: "center",
-                        fontSize: "1.3rem",
                       }}
                     >
                       <span>Qty</span>
@@ -943,7 +890,6 @@ const Invoice = () => {
                         width: "15%",
                         textAlign: "right",
                         paddingRight: "10px",
-                        fontSize: "1.3rem",
                       }}
                     >
                       <span>Price</span>
@@ -961,26 +907,24 @@ const Invoice = () => {
                         style={{
                           width: "10%",
                           paddingLeft: "10px",
-                          fontSize: "1.3rem",
                         }}
                       >
                         <span>{index + 1}.</span>
                       </div>
-                      <div style={{ width: "50%", fontSize: "1.3rem" }}>
+                      <div style={{ width: "50%" }}>
                         <span>
                           {product.name}
                           {product.size ? ` (${product.size})` : ""}
-                            {/* Add FREE label here if it's a free item */}
-        {product.isFree && (
-          <span className="free-label"> (FREE)</span>
-        )}
+                          {/* Add FREE label here if it's a free item */}
+                          {product.isFree && (
+                            <span className="free-label"> (FREE)</span>
+                          )}
                         </span>
                       </div>
                       <div
                         style={{
                           width: "20%",
                           textAlign: "center",
-                          fontSize: "1.3rem",
                         }}
                       >
                         <div className="quantity-btn">
@@ -997,7 +941,7 @@ const Invoice = () => {
                           >
                             <FaMinusCircle />
                           </button>
-                          <span style={{ fontSize: "1.3rem" }}>
+                          <span>
                             {product.quantity}
                           </span>
                           <button
@@ -1019,7 +963,6 @@ const Invoice = () => {
                           width: "15%",
                           textAlign: "right",
                           paddingRight: "10px",
-                          fontSize: "1.3rem",
                         }}
                       >
                         <div>
@@ -1040,7 +983,6 @@ const Invoice = () => {
                         width: "77%",
                         textAlign: "center",
                         fontWeight: 800,
-                        fontSize: "1.3rem",
                       }}
                     >
                       <span>Total</span>
@@ -1052,7 +994,7 @@ const Invoice = () => {
                         fontWeight: 900,
                       }}
                     >
-                      <span style={{ fontSize: "1.3rem" }}>
+                      <span>
                         {calculateTotalPrice(productsToSend)}
                       </span>
                     </div>
