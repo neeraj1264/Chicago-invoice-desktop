@@ -242,32 +242,44 @@ const Invoice = () => {
     }
   }, [location]);
 
-  // Load products from localStorage on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const products = await fetchProducts(); // Use the function from api.js
-        setSelectedProducts(products);
-        await saveItems("products", products);
-        setLoading(false);
-      } catch (err) {
-        console.warn("Fetch failed, loading from IDB:", err);
-        const prods = await getAll("products");
-        setSelectedProducts(prods);
-        setLoading(false);
-      }
-    };
+useEffect(() => {
+  let cancelled = false;
 
-    fetchData();
+  async function hydrateFromIDB() {
+    try {
+      const offline = await getAll("products");
+      if (cancelled) return;
+      setSelectedProducts(offline);
+    } catch (err) {
+      console.error("Error loading from IDB:", err);
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+  }
 
-    const storedProductsToSend =
-      JSON.parse(localStorage.getItem("productsToSend")) || [];
-    setProductsToSend(storedProductsToSend);
+  async function refreshFromServer() {
+    try {
+      const products = await fetchProducts();
+      if (cancelled) return;
+      setSelectedProducts(products);
+      await saveItems("products", products);
+    } catch (err) {
+      console.warn("Server fetch failed, keeping IDB data:", err);
+    }
+  }
 
-    localStorage.removeItem("deliveryCharge");
+  hydrateFromIDB();      // 1️⃣ immediately populate from IDB & hide spinner
+  refreshFromServer();   // 2️⃣ then update in background
 
-    // setSelectedVariety([]);
-  }, []);
+  // also restore the cart‑to‑send list
+  const stored = JSON.parse(localStorage.getItem("productsToSend")) || [];
+  setProductsToSend(stored);
+  localStorage.removeItem("deliveryCharge");
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   // Persist cart to IDB whenever it changes
   useEffect(() => {
@@ -864,7 +876,6 @@ const Invoice = () => {
                     <div
                       style={{
                         width: "10%",
-                        paddingLeft: "10px",
                       }}
                     >
                       <span>No.</span>
@@ -906,7 +917,6 @@ const Invoice = () => {
                       <div
                         style={{
                           width: "10%",
-                          paddingLeft: "10px",
                         }}
                       >
                         <span>{index + 1}.</span>
@@ -962,7 +972,6 @@ const Invoice = () => {
                         style={{
                           width: "15%",
                           textAlign: "right",
-                          paddingRight: "10px",
                         }}
                       >
                         <div>
@@ -1010,7 +1019,6 @@ const Invoice = () => {
                   </li>
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
                   <hr className="hr" />
-                  <hr className="hr" style={{ marginBottom: "3rem" }} />
                 </ul>
                 <div className="order-type">
                   {["delivery", "dine-in", "takeaway"].map((type) => (
