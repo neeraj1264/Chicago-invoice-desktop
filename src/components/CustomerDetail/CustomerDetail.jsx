@@ -38,9 +38,11 @@ const CustomerDetail = () => {
 
   const [discountAmount, setDiscountAmount] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
-
-  const [billNumber, setBillNumber] = useState("");
-
+    const location = useLocation();
+  const { billNo } = location.state || {};
+  console.log("billNo",billNo)
+  const [billNumber, setbillNumber] = useState(billNo || "");
+console.log("billNumber",billNumber)
   const invoiceRef = useRef(); // Reference to the hidden invoice content
   const navigate = useNavigate();
 
@@ -158,7 +160,7 @@ const CustomerDetail = () => {
     const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // Build the WhatsApp message in the same order as the invoice
-    let msg = `Order-ID: *${orderId}*\n`;
+    let msg = `Bill-No: *${billNumber}*\n`;
     msg += `Order-Type: *${orderType}*\n`;
     msg += `Amount: *${netTotal.toFixed(2)}*`;
     if (customerPhone) msg += `\nPhone: *${customerPhone}*`;
@@ -191,25 +193,6 @@ const CustomerDetail = () => {
     }
   };
 
-  const handleBack = () => {
-    navigate(-1);
-  };
-
-  const generateNextBillNo = () => {
-    const today = new Date().toLocaleDateString("en-GB"); // "dd/mm/yyyy"
-    const storedDate = localStorage.getItem("billDate");
-    let nextNo = 51;
-
-    if (storedDate === today) {
-      nextNo = parseInt(localStorage.getItem("lastBillNo") || "0", 10) + 1;
-    }
-
-    localStorage.setItem("billDate", today);
-    localStorage.setItem("lastBillNo", nextNo);
-
-    return nextNo.toString().padStart(4, "0");
-  };
-
   const handleSendClick = async () => {
     const { discountValue, netTotal } = computeTotals();
 
@@ -218,8 +201,6 @@ const CustomerDetail = () => {
       toast.error("Please add product before proceed", toastOptions);
       return; // Exit the function early
     }
-    const no = generateNextBillNo();
-    setBillNumber(no);
 
     setShowPopup(true);
 

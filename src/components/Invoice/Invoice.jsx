@@ -89,6 +89,7 @@ const Invoice = () => {
   // State for modal visibility and data
   const [showKotModal, setShowKotModal] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [editingBillNo, setEditingBillNo] = useState(null);
 
   const navigate = useNavigate(); // For navigation
 
@@ -582,8 +583,31 @@ useEffect(() => {
 
   // New: KOT (Kitchen Order Ticket) print handler
   const handleKot = () => {
+
+       const todayKey = new Date().toLocaleDateString();
+    const counter = JSON.parse(localStorage.getItem("kotCounter")) || { date: todayKey, lastNo: 50 };
+    let nextNo;
+  
+    if (editingBillNo) {
+      // we’re re‐printing an edited ticket: reuse its original number
+      nextNo = editingBillNo;
+    } else {
+      // brand‐new KOT: bump (or reset) the counter
+      nextNo = counter.date === todayKey ? counter.lastNo + 1 : 51;
+      localStorage.setItem(
+        "kotCounter",
+        JSON.stringify({ date: todayKey, lastNo: nextNo })
+      );
+    }
+  
+    // after we’ve captured it, clear edit mode so only this one re‐print reuses it
+    setEditingBillNo(null);
+
+    const billNo = String(nextNo).padStart(4, "0");
+
     // Append current order snapshot
     const kotEntry = {
+      billNo:     billNo,
       timestamp: Date.now(),
       date: new Date().toLocaleString(),
       items: productsToSend,
@@ -616,7 +640,14 @@ useEffect(() => {
 
     const header = `
   <div style="text-align:center; font-weight:700; margin-bottom:8px;">
-    ${orderType === "delivery" ? "Delivery" : "Dine-In"}
+  Bill No. ${billNo}
+    ${
+      orderType === "delivery"
+        ? "Delivery"
+        : orderType === "dine-in"
+        ? "Dine‑In"
+        : "Takeaway"
+    }
   </div>
 `;
 
@@ -656,10 +687,11 @@ useEffect(() => {
 
   const handleCreateInvoice = (orderItems, type) => {
     // save the items and the order type
-    localStorage.setItem("productsToSend", JSON.stringify(orderItems));
+    localStorage.setItem("productsToSend", JSON.stringify(orderItems.items));
     localStorage.setItem("orderType", type);
     // also pass via react-router state (optional, but nice)
-    navigate("/customer-detail", { state: { orderType: type } });
+    navigate("/customer-detail", { state: { orderType: type, billNo: orderItems.billNo, } });
+    console.log("handleCreateInvoice",orderItems.billNo)
     setShowKotModal(false);
   };
 
@@ -675,11 +707,12 @@ useEffect(() => {
     } else if (modalType === "takeaway") {
       const updated = takeawayBills.filter((_, i) => i !== idx);
       setTakeawayBills(updated);
-      localStorage.setItem("TakeAwayKotData", JSON.stringify(updated));
+      localStorage.setItem("takeawayKotData", JSON.stringify(updated));
     }
   };
 
   const editKot = (order, idx) => {
+    setEditingBillNo(order.billNo);
     // Remove from the correct list
     if (modalType === "delivery") {
       const updated = deliveryBills.filter((_, i) => i !== idx);
@@ -692,12 +725,12 @@ useEffect(() => {
     } else if (modalType === "takeaway") {
       const updated = takeawayBills.filter((_, i) => i !== idx);
       setTakeawayBills(updated);
-      localStorage.setItem("TakeAwayKotData", JSON.stringify(updated));
+      localStorage.setItem("takeawayKotData", JSON.stringify(updated));
     }
 
     // Load into current products
-    setProductsToSend(order);
-    localStorage.setItem("productsToSend", JSON.stringify(order));
+    setProductsToSend(order.items);
+    localStorage.setItem("productsToSend", JSON.stringify(order.items));
     setShowKotModal(false);
   };
 
@@ -1113,8 +1146,8 @@ useEffect(() => {
                     <h4 className="kot-timer">
                       Bill Expire in <span>{formatRemaining(remaining)}</span>
                     </h4>
-                    <h4>
-                      KOT #{idx + 1}
+                   <h4>
+                       Bill No. {order.billNo}
                       <span className="kot-date">{order.date}</span>
                     </h4>
                     <ul>
@@ -1140,13 +1173,13 @@ useEffect(() => {
                       <FaEdit
                         className="edit-action-icon action-icon"
                         size={20}
-                        onClick={() => editKot(order.items, idx)}
+                        onClick={() => editKot(order, idx)}
                       />
                       <FaFileInvoice
                         className="invoice-action-icon action-icon"
                         size={20}
                         onClick={() =>
-                          handleCreateInvoice(order.items, modalType)
+                          handleCreateInvoice(order, modalType)
                         }
                       />
                     </div>
