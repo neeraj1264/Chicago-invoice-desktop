@@ -899,16 +899,16 @@ useEffect(() => {
                     className="product-item"
                     style={{ display: "flex"}}
                   >
-                    <div
+                    {/* <div
                       style={{
                         width: "10%",
                       }}
                     >
                       <span>No.</span>
-                    </div>
+                    </div> */}
                     <div
                       style={{
-                        width: "50%",
+                        width: "60%",
                         textAlign: "center",
                       }}
                     >
@@ -916,13 +916,13 @@ useEffect(() => {
                     </div>
                     <div
                       style={{
-                        width: "25%",
+                        width: "30%",
                         textAlign: "center",
                       }}
                     >
                       <span>Qty</span>
                     </div>
-                    <div
+                    {/* <div
                       style={{
                         width: "15%",
                         textAlign: "right",
@@ -930,7 +930,7 @@ useEffect(() => {
                       }}
                     >
                       <span>Price</span>
-                    </div>
+                    </div> */}
                   </li>
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
                   <hr className="hr" />
@@ -940,14 +940,14 @@ useEffect(() => {
                       className="product-item"
                       style={{ display: "flex" }}
                     >
-                      <div
+                      {/* <div
                         style={{
                           width: "10%",
                         }}
                       >
                         <span>{index + 1}.</span>
-                      </div>
-                      <div style={{ width: "50%" }}>
+                      </div> */}
+                      <div style={{ width: "60%" }}>
                         <span>
                           {product.name}
                           {product.size ? ` (${product.size})` : ""}
@@ -959,7 +959,7 @@ useEffect(() => {
                       </div>
                       <div
                         style={{
-                          width: "20%",
+                          width: "30%",
                           textAlign: "center",
                         }}
                       >
@@ -994,7 +994,7 @@ useEffect(() => {
                           </button>
                         </div>
                       </div>{" "}
-                      <div
+                      {/* <div
                         style={{
                           width: "15%",
                           textAlign: "right",
@@ -1007,7 +1007,7 @@ useEffect(() => {
                             `${product.price * product.quantity}`
                           )}
                         </div>
-                      </div>
+                      </div> */}
                     </li>
                   ))}
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
@@ -1015,7 +1015,7 @@ useEffect(() => {
                   <li className="product-item" style={{ display: "flex" }}>
                     <div
                       style={{
-                        width: "77%",
+                        width: "60%",
                         textAlign: "center",
                         fontWeight: 800,
                       }}
@@ -1033,19 +1033,10 @@ useEffect(() => {
                         {calculateTotalPrice(productsToSend)}
                       </span>
                     </div>
-                    <div
-                      style={{
-                        width: "5%",
-                        textAlign: "left",
-                        fontWeight: 900,
-                      }}
-                    >
-                      <span>/-</span>
-                    </div>
                   </li>
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
                   <hr className="hr" />
-                  <div>
+                  <div style={{textAlign: "center" , fontSize: "2rem" , fontWeight: 800}}>
                    {
       orderType === "delivery"
         ? "Delivery"
