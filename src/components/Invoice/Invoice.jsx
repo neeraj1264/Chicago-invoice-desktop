@@ -641,22 +641,15 @@ useEffect(() => {
     const header = `
   <div style="text-align:center; font-weight:700; margin-bottom:8px;">
   Bill No. ${billNo}
-    ${
-      orderType === "delivery"
-        ? "Delivery"
-        : orderType === "dine-in"
-        ? "Dine‑In"
-        : "Takeaway"
-    }
   </div>
 `;
 
     const printContent = header + printArea.innerHTML;
     const win = window.open("", "", "width=600,height=400");
     const style = `<style>
-  @page { size: 76.2mm 400mm; margin:0; }
+  @page { size: 70mm 400mm; margin:0; }
   @media print {
-    body{ width: 76.2mm !important; margin:0; padding:4mm; font-size:1rem; }
+    body{ width: 70mm !important; margin:0; padding:4mm; font-size:1rem; }
     .product-item{ display:flex; justify-content:space-between; margin-bottom:1rem;}
     .hr{ border:none; border-bottom:1px solid #000; margin:2px 0;}
     .invoice-btn{ display:none; }
@@ -1052,6 +1045,15 @@ useEffect(() => {
                   </li>
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
                   <hr className="hr" />
+                  <div>
+                   {
+      orderType === "delivery"
+        ? "Delivery"
+        : orderType === "dine-in"
+        ? "Dine‑In"
+        : "Takeaway"
+    }
+    </div>
                 </ul>
                 <div className="order-type">
                   {["delivery", "dine-in", "takeaway"].map((type) => (
