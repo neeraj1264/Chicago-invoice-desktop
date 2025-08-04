@@ -644,7 +644,7 @@ console.log("billNumber",billNumber)
             style={{
               textAlign: "center",
               fontSize: "15px",
-              padding: "1rem 0",
+              padding: ".1rem 0 1rem",
             }}
           >
             Thank You Visit Again!
