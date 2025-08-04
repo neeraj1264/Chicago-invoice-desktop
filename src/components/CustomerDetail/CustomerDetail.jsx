@@ -354,9 +354,9 @@ console.log("billNumber",billNumber)
       newWindow.document.close();
 
       newWindow.onload = () => {
-        newWindow.focus();
-        newWindow.print();
-        newWindow.close();
+        // newWindow.focus();
+        // newWindow.print();
+        // newWindow.close();
       };
     } catch (error) {
       console.error("Error generating printable content:", error);
@@ -506,7 +506,7 @@ console.log("billNumber",billNumber)
         <div style={{ border: "2px dotted", margin: "0 0 5px 0", padding: ".4rem" }}>
           {logoAvailable && (
             <img
-              src="/logo.jpg"
+              src="/logo.png"
               alt="Logo5"
               width={150}
               className="logo"
@@ -514,7 +514,7 @@ console.log("billNumber",billNumber)
             />
           )}
           <h1
-            style={{ textAlign: "center", margin: ".5rem", fontSize: "30px" }}
+            style={{ textAlign: "center", margin: ".5rem", fontSize: "25px" }}
           >
             Chicago Delight's
           </h1>
