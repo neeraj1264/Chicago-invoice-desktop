@@ -1013,7 +1013,7 @@ useEffect(() => {
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
                   <hr className="hr" />
                   <li className="product-item" style={{ display: "flex" }}>
-                    <div
+                    {/* <div
                       style={{
                         width: "60%",
                         textAlign: "center",
@@ -1032,10 +1032,10 @@ useEffect(() => {
                       <span>
                         {calculateTotalPrice(productsToSend)}
                       </span>
-                    </div>
+                    </div> */}
                   </li>
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
-                  <hr className="hr" />
+                  {/* <hr className="hr" /> */}
                   <div style={{textAlign: "center" , fontSize: "2rem" , fontWeight: 800}}>
                    {
       orderType === "delivery"

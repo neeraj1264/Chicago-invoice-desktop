@@ -302,10 +302,10 @@ console.log("billNumber",billNumber)
                 body {
                 font-family: Arial, sans-serif;
                 font-size: 12px;
-                width: 76mm;
+                width: 69mm;
               }
               table {
-                width: 90%;
+                width: 100%;
                 border-collapse: collapse;
               }
               th, td {
