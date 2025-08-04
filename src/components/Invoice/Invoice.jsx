@@ -1108,8 +1108,8 @@ const Invoice = () => {
         </button>
       </div>
       {showKotModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
+        <div className="modal-overlay" onClick={() => setShowKotModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>
               {modalType === "delivery"
                 ? "Delivery"
