@@ -354,9 +354,9 @@ console.log("billNumber",billNumber)
       newWindow.document.close();
 
       newWindow.onload = () => {
-        // newWindow.focus();
-        // newWindow.print();
-        // newWindow.close();
+        newWindow.focus();
+        newWindow.print();
+        newWindow.close();
       };
     } catch (error) {
       console.error("Error generating printable content:", error);
