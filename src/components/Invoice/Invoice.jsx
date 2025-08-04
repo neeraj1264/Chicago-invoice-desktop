@@ -169,7 +169,6 @@ const Invoice = () => {
     return `${hours}:${minutes}:${seconds}`;
   };
 
-
   const handlePressEnd = () => {
     // Clear the timeout if the user releases the press before 1 second
     clearTimeout(pressTimer);
@@ -243,44 +242,44 @@ const Invoice = () => {
     }
   }, [location]);
 
-useEffect(() => {
-  let cancelled = false;
+  useEffect(() => {
+    let cancelled = false;
 
-  async function hydrateFromIDB() {
-    try {
-      const offline = await getAll("products");
-      if (cancelled) return;
-      setSelectedProducts(offline);
-    } catch (err) {
-      console.error("Error loading from IDB:", err);
-    } finally {
-      if (!cancelled) setLoading(false);
+    async function hydrateFromIDB() {
+      try {
+        const offline = await getAll("products");
+        if (cancelled) return;
+        setSelectedProducts(offline);
+      } catch (err) {
+        console.error("Error loading from IDB:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }
 
-  async function refreshFromServer() {
-    try {
-      const products = await fetchProducts();
-      if (cancelled) return;
-      setSelectedProducts(products);
-      await saveItems("products", products);
-    } catch (err) {
-      console.warn("Server fetch failed, keeping IDB data:", err);
+    async function refreshFromServer() {
+      try {
+        const products = await fetchProducts();
+        if (cancelled) return;
+        setSelectedProducts(products);
+        await saveItems("products", products);
+      } catch (err) {
+        console.warn("Server fetch failed, keeping IDB data:", err);
+      }
     }
-  }
 
-  hydrateFromIDB();      // 1️⃣ immediately populate from IDB & hide spinner
-  refreshFromServer();   // 2️⃣ then update in background
+    hydrateFromIDB(); // 1️⃣ immediately populate from IDB & hide spinner
+    refreshFromServer(); // 2️⃣ then update in background
 
-  // also restore the cart‑to‑send list
-  const stored = JSON.parse(localStorage.getItem("productsToSend")) || [];
-  setProductsToSend(stored);
-  localStorage.removeItem("deliveryCharge");
+    // also restore the cart‑to‑send list
+    const stored = JSON.parse(localStorage.getItem("productsToSend")) || [];
+    setProductsToSend(stored);
+    localStorage.removeItem("deliveryCharge");
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Persist cart to IDB whenever it changes
   useEffect(() => {
@@ -583,11 +582,13 @@ useEffect(() => {
 
   // New: KOT (Kitchen Order Ticket) print handler
   const handleKot = () => {
-
-       const todayKey = new Date().toLocaleDateString();
-    const counter = JSON.parse(localStorage.getItem("kotCounter")) || { date: todayKey, lastNo: 50 };
+    const todayKey = new Date().toLocaleDateString();
+    const counter = JSON.parse(localStorage.getItem("kotCounter")) || {
+      date: todayKey,
+      lastNo: 50,
+    };
     let nextNo;
-  
+
     if (editingBillNo) {
       // we’re re‐printing an edited ticket: reuse its original number
       nextNo = editingBillNo;
@@ -599,7 +600,7 @@ useEffect(() => {
         JSON.stringify({ date: todayKey, lastNo: nextNo })
       );
     }
-  
+
     // after we’ve captured it, clear edit mode so only this one re‐print reuses it
     setEditingBillNo(null);
 
@@ -607,7 +608,7 @@ useEffect(() => {
 
     // Append current order snapshot
     const kotEntry = {
-      billNo:     billNo,
+      billNo: billNo,
       timestamp: Date.now(),
       date: new Date().toLocaleString(),
       items: productsToSend,
@@ -683,8 +684,10 @@ useEffect(() => {
     localStorage.setItem("productsToSend", JSON.stringify(orderItems.items));
     localStorage.setItem("orderType", type);
     // also pass via react-router state (optional, but nice)
-    navigate("/customer-detail", { state: { orderType: type, billNo: orderItems.billNo, } });
-    console.log("handleCreateInvoice",orderItems.billNo)
+    navigate("/customer-detail", {
+      state: { orderType: type, billNo: orderItems.billNo },
+    });
+    console.log("handleCreateInvoice", orderItems.billNo);
     setShowKotModal(false);
   };
 
@@ -770,33 +773,32 @@ useEffect(() => {
                 .sort((a, b) => a.localeCompare(b)) // Sort category names alphabetically
                 .map((category, index) => (
                   <>
-                                  <div key={category} className="category-block">
+                    <div key={category} className="category-block">
+                      <h2 className="category" id={category}>
+                        {category}
+                      </h2>
 
-                    <h2 className="category" id={category}>
-                      {category}
-                    </h2>
+                      <div key={index} className="category-container">
+                        {filteredProducts[category]
+                          .sort((a, b) => a.price - b.price) // Sort products by price in ascending order
+                          .map((product, idx) => {
+                            const isSelected = productsToSend.some(
+                              (p) =>
+                                p.name === product.name &&
+                                (!product.varieties?.length ||
+                                  product.varieties.some(
+                                    (v) =>
+                                      v.price === p.price && v.size === p.size
+                                  ))
+                            );
 
-                    <div key={index} className="category-container">
-                      {filteredProducts[category]
-                        .sort((a, b) => a.price - b.price) // Sort products by price in ascending order
-                        .map((product, idx) => {
-                          const isSelected = productsToSend.some(
-                            (p) =>
-                              p.name === product.name &&
-                              (!product.varieties?.length ||
-                                product.varieties.some(
-                                  (v) =>
-                                    v.price === p.price && v.size === p.size
-                                ))
-                          );
-
-                          return (
-                            <>
+                            return (
+                              <>
                                 <div
                                   key={idx}
                                   className={`main-box ${
-                                  isSelected ? "highlighted" : ""
-                                }`}
+                                    isSelected ? "highlighted" : ""
+                                  }`}
                                   onClick={() => handleProductClick(product)}
                                 >
                                   <div
@@ -814,9 +816,9 @@ useEffect(() => {
                                     <p className="p-name-price">
                                       Rs.{" "}
                                       {product.price
-                                        ? product.price.toFixed(2) // Use product price if it exists
+                                        ? product.price // Use product price if it exists
                                         : product.varieties.length > 0
-                                        ? product.varieties[0].price.toFixed(2) // Fallback to first variety price
+                                        ? product.varieties[0].price // Fallback to first variety price
                                         : "N/A"}{" "}
                                       {/* Handle case when neither price nor varieties are available */}
                                     </p>
@@ -836,10 +838,10 @@ useEffect(() => {
                                       </span>
                                     ))}
                                 </div>
-                            </>
-                          );
-                        })}
-                    </div>
+                              </>
+                            );
+                          })}
+                      </div>
                     </div>
                   </>
                 ))
@@ -895,10 +897,7 @@ useEffect(() => {
               <>
                 <ul className="product-list" id="sample-section">
                   <hr className="hr" />
-                  <li
-                    className="product-item"
-                    style={{ display: "flex"}}
-                  >
+                  <li className="product-item" style={{ display: "flex" }}>
                     {/* <div
                       style={{
                         width: "10%",
@@ -977,9 +976,7 @@ useEffect(() => {
                           >
                             <FaMinusCircle />
                           </button>
-                          <span>
-                            {product.quantity}
-                          </span>
+                          <span>{product.quantity}</span>
                           <button
                             className="icon"
                             onClick={() =>
@@ -1036,15 +1033,19 @@ useEffect(() => {
                   </li>
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
                   {/* <hr className="hr" /> */}
-                  <div style={{textAlign: "center" , fontSize: "2rem" , fontWeight: 800}}>
-                   {
-      orderType === "delivery"
-        ? "Delivery"
-        : orderType === "dine-in"
-        ? "Dine‑In"
-        : "Takeaway"
-    }
-    </div>
+                  <div
+                    style={{
+                      textAlign: "center",
+                      fontSize: "2rem",
+                      fontWeight: 800,
+                    }}
+                  >
+                    {orderType === "delivery"
+                      ? "Delivery"
+                      : orderType === "dine-in"
+                      ? "Dine‑In"
+                      : "Takeaway"}
+                  </div>
                 </ul>
                 <div className="order-type">
                   {["delivery", "dine-in", "takeaway"].map((type) => (
@@ -1134,13 +1135,19 @@ useEffect(() => {
                 : takeawayBills
               ).map((order, idx) => {
                 const remaining = EXPIRY_MS - (now - order.timestamp);
+
+                // Calculate total amount
+                const totalAmount = order.items.reduce(
+                  (acc, item) => acc + item.price * item.quantity,
+                  0
+                );
                 return (
                   <div key={idx} className="kot-entry">
                     <h4 className="kot-timer">
                       Bill Expire in <span>{formatRemaining(remaining)}</span>
                     </h4>
-                   <h4>
-                       Bill No. {order.billNo}
+                    <h4>
+                      Bill No. {order.billNo}
                       <span className="kot-date">{order.date}</span>
                     </h4>
                     <ul>
@@ -1157,6 +1164,11 @@ useEffect(() => {
                         </>
                       ))}
                     </ul>
+                    {/* Show total amount */}
+                    <div className="kot-total">
+                      <strong>Total </strong>
+                      <strong>₹{totalAmount.toFixed(2)}</strong>
+                    </div>
                     <div className="kot-entry-actions">
                       <FaTrash
                         className="del-action-icon action-icon"
@@ -1171,9 +1183,7 @@ useEffect(() => {
                       <FaFileInvoice
                         className="invoice-action-icon action-icon"
                         size={20}
-                        onClick={() =>
-                          handleCreateInvoice(order, modalType)
-                        }
+                        onClick={() => handleCreateInvoice(order, modalType)}
                       />
                     </div>
                   </div>

@@ -601,6 +601,7 @@ input[type="checkbox"] {
   padding: 1rem;
   background-color: #fafafa;
   transition: transform 0.2s ease;
+  box-shadow: 3px 0px 6px 1px grey;
 }
 .kot-entry:hover {
   transform: scale(1.01);
@@ -767,4 +768,16 @@ input[type="checkbox"] {
   font-weight: bold;
   letter-spacing: 0.5px;
   color: white;
+}
+
+.kot-total {
+    display: flex;
+    justify-content: center;
+    background: whitesmoke;
+    padding: .5rem;
+    border-radius: 1rem;
+    font-weight: 700;
+}
+.kot-total strong {
+  margin: 0 .5rem;
 }
