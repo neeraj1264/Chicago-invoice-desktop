@@ -11,6 +11,8 @@ import {
   FaSearch,
   FaEdit,
   FaShoppingCart,
+  FaChevronDown,
+  FaChevronUp,
 } from "react-icons/fa";
 // import { AiOutlineBars } from "react-icons/ai";
 import { IoMdCloseCircle } from "react-icons/io";
@@ -21,6 +23,8 @@ import "react-toastify/dist/ReactToastify.css";
 import { IoClose } from "react-icons/io5";
 import { getAll, saveItems } from "../../DB";
 import { useOnlineStatus } from "../../useOnlineStatus";
+import { CATEGORY_HIERARCHY } from "../Utils/categoryHierarchy";
+import { motion, AnimatePresence } from "framer-motion";
 
 const toastOptions = {
   position: "bottom-right",
@@ -64,6 +68,10 @@ const Invoice = () => {
   const [activeCategory, setActiveCategory] = useState("");
   const { isOnline, checkBackend } = useOnlineStatus();
   const [isChecking, setIsChecking] = useState(false);
+  // State for controlling the BOGO picker
+  const [bogoPickerOpen, setBogoPickerOpen] = useState(false);
+  const [bogoPaidProduct, setBogoPaidProduct] = useState(null);
+  const [bogoDone, setBogoDone] = useState(new Set());
 
   // default to “delivery”
   const [orderType, setOrderType] = useState("delivery");
@@ -80,6 +88,13 @@ const Invoice = () => {
   );
   // tracks which list to show in the modal
   const [modalType, setModalType] = useState("delivery"); // "delivery" or "dine-in"
+
+  // inside Invoice component:
+  const [expandedParent, setExpandedParent] = useState(null);
+
+  const toggleParent = (parent) => {
+    setExpandedParent(expandedParent === parent ? null : parent);
+  };
 
   const openBillsModal = (type) => {
     setModalType(type);
@@ -140,7 +155,7 @@ const Invoice = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const EXPIRY_MS = 2 * 60 * 60 * 1000;
+  const EXPIRY_MS = 24 * 60 * 60 * 1000;
 
   useEffect(() => {
     const cleanUp = (bills, setBills, storageKey) => {
@@ -374,6 +389,21 @@ const Invoice = () => {
   };
 
   const handleAddToWhatsApp = (product, selectedVarieties = []) => {
+    const pickedSize = selectedVarieties.length
+      ? selectedVarieties[0].size.toLowerCase()
+      : product.size?.toLowerCase();
+
+    // 1) Is this pizza even BOGO-eligible?
+    const eligibleSizes = BOGO_ELIGIBLE_PRODUCTS[product.name] || [];
+
+    const alreadyDone = bogoDone.has(product.name);
+
+    if (bogoEnabled && eligibleSizes.includes(pickedSize) && !alreadyDone) {
+      setBogoPaidProduct({ ...product, size: pickedSize });
+      setBogoPickerOpen(true);
+      return;
+    }
+
     // Handle products with no varieties
     if (selectedVarieties.length === 0) {
       const exists = productsToSend.some(
@@ -382,6 +412,8 @@ const Invoice = () => {
           prod.price === product.price &&
           prod.size === product.size
       );
+      // a) BOGO check — do this _before_ any state updater
+      console.log({ bogoEnabled, today: new Date().getDay() });
 
       setProductsToSend((prev) => {
         let updated = [];
@@ -416,6 +448,9 @@ const Invoice = () => {
                 isFree: true,
                 quantity: 1,
               });
+              setBogoPaidProduct(product);
+              // open our picker UI instead of adding immediately
+              setBogoPickerOpen(true);
             }
           }
         }
@@ -459,25 +494,6 @@ const Invoice = () => {
           if (BOGO_ELIGIBLE_PRODUCTS[prod.name]) {
             const eligibleSizes = BOGO_ELIGIBLE_PRODUCTS[prod.name];
             const size = prod.size?.toLowerCase();
-
-            // Check if this specific size is eligible
-            if (size && eligibleSizes.includes(size)) {
-              // Check if free item already exists
-              const freeItemExists = updated.some(
-                (p) => p.name === prod.name && p.size === prod.size && p.isFree
-              );
-
-              // Add free item if it doesn't exist
-              if (!freeItemExists) {
-                updated.push({
-                  ...prod,
-                  price: 0,
-                  originalPrice: prod.price,
-                  isFree: true,
-                  quantity: prod.quantity,
-                });
-              }
-            }
           }
         });
       }
@@ -660,6 +676,9 @@ const Invoice = () => {
         .icon span {
         display: block;
         }
+.s-s-h-1, .s-s-t-1, .s-s-f-1, .s-s-f-2 {
+  display: none !important;
+}
 </style>`;
 
     win.document.write(
@@ -730,6 +749,52 @@ const Invoice = () => {
     setShowKotModal(false);
   };
 
+  const TOP_CATEGORIES = [
+    "pizza",
+    "Double Veg. Pizza",
+    "Flood Pizza",
+    "Simple Veg. Pizza",
+    "Premium Veg. Pizza",
+    "Extra",
+    "Choice of Crust",
+    "Special Veg. Pizza",
+    "Kulhad Pizza",
+    "chinese",
+    "Vegetable",
+    "Noodles",
+    "Paneer",
+    "Sizzlers",
+    "Mushroom",
+    "Main",
+    "Combo meal",
+    "Maggie",
+    "Chaap",
+    "Momos",
+    "Rice",
+    "Soup",
+  ];
+
+  const sortByTopCategories = (list) => {
+    return list.sort((a, b) => {
+      const ai = TOP_CATEGORIES.findIndex(
+        (cat) => cat.toLowerCase() === a.toLowerCase()
+      );
+      const bi = TOP_CATEGORIES.findIndex(
+        (cat) => cat.toLowerCase() === b.toLowerCase()
+      );
+
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+
+      return a.localeCompare(b);
+    });
+  };
+
+  const categoriess = useMemo(() => {
+    return sortByTopCategories(Object.keys(filteredProducts));
+  }, [filteredProducts]);
+
   return (
     <div>
       <ToastContainer />
@@ -743,19 +808,85 @@ const Invoice = () => {
           <div className="category-barr">
             <div className="category-b">
               <div className="category-bar">
-                {Object.keys(filteredProducts)
-                  .sort((a, b) => a.localeCompare(b))
-                  .map((category, index) => (
-                    <button
-                      key={index}
-                      className={`category-btn 
-                      ${activeCategory === category ? "active" : ""}
-                    `}
-                      onClick={() => handleCategoryClick(category)} // Trigger scroll to category
-                    >
-                      {category}
-                    </button>
-                  ))}
+                {Object.keys(CATEGORY_HIERARCHY)
+                  .sort((a, b) =>
+                    sortByTopCategories([a, b])[0] === a ? -1 : 1
+                  )
+                  .map((parent) => {
+                    const allSubs = CATEGORY_HIERARCHY[parent];
+                    // keep only the subs you actually have, then sort them A→Z
+                    const subs = allSubs
+                      .filter((sub) => filteredProducts[sub])
+                      .sort((a, b) =>
+                        sortByTopCategories([a, b])[0] === a ? -1 : 1
+                      );
+
+                    if (!subs.length) return null;
+
+                    // single-sub case: show the sub directly
+                    if (subs.length === 1) {
+                      const sub = subs[0];
+                      return (
+                        <button
+                          key={sub}
+                          className={`category-btn single-btn ${
+                            activeCategory === sub ? "active" : ""
+                          }`}
+                          onClick={() => handleCategoryClick(sub)}
+                        >
+                          {sub}
+                        </button>
+                      );
+                    }
+
+                    // multi-sub case: dropdown parent + sorted subs
+                    const isOpen = expandedParent === parent;
+                    return (
+                      <div key={parent} className="parent-group">
+                        <button
+                          className={`category-btn parent-btn ${
+                            isOpen ? "open" : ""
+                          }`}
+                          onClick={() => toggleParent(parent)}
+                        >
+                          <span>{parent}</span>
+                          {isOpen ? (
+                            <FaChevronUp className="chevron-icon" />
+                          ) : (
+                            <FaChevronDown className="chevron-icon" />
+                          )}
+                        </button>
+
+                        <AnimatePresence initial={false}>
+                          {isOpen && (
+                            <motion.div
+                              className="sub-category-list"
+                              initial={{ scaleY: 0, opacity: 0 }}
+                              animate={{ scaleY: 1, opacity: 1 }}
+                              exit={{ scaleY: 0, opacity: 0 }}
+                              transition={{ duration: 0.3, ease: "easeInOut" }}
+                              style={{
+                                overflow: "hidden",
+                                transformOrigin: "top",
+                              }}
+                            >
+                              {subs.map((sub) => (
+                                <button
+                                  key={sub}
+                                  className={`category-btn sub-btn ${
+                                    activeCategory === sub ? "active" : ""
+                                  }`}
+                                  onClick={() => handleCategoryClick(sub)}
+                                >
+                                  {sub}
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           </div>
@@ -769,82 +900,71 @@ const Invoice = () => {
                 <div></div>
               </div>
             ) : Object.keys(filteredProducts).length > 0 ? (
-              Object.keys(filteredProducts)
-                .sort((a, b) => a.localeCompare(b)) // Sort category names alphabetically
-                .map((category, index) => (
-                  <>
-                    <div key={category} className="category-block">
-                      <h2 className="category" id={category}>
-                        {category}
-                      </h2>
+              categoriess.map((category, index) => (
+                <div key={category} className="category-block">
+                  <h2 className="category" id={category}>
+                    {category}
+                  </h2>
 
-                      <div key={index} className="category-container">
-                        {filteredProducts[category]
-                          .sort((a, b) => a.price - b.price) // Sort products by price in ascending order
-                          .map((product, idx) => {
-                            const isSelected = productsToSend.some(
-                              (p) =>
-                                p.name === product.name &&
-                                (!product.varieties?.length ||
-                                  product.varieties.some(
-                                    (v) =>
-                                      v.price === p.price && v.size === p.size
-                                  ))
-                            );
+                  <div key={index} className="category-container">
+                    {filteredProducts[category].map((product, idx) => {
+                      const isSelected = productsToSend.some(
+                        (p) =>
+                          p.name === product.name &&
+                          (!product.varieties?.length ||
+                            product.varieties.some(
+                              (v) => v.price === p.price && v.size === p.size
+                            ))
+                      );
 
-                            return (
-                              <>
-                                <div
-                                  key={idx}
-                                  className={`main-box ${
-                                    isSelected ? "highlighted" : ""
-                                  }`}
-                                  onClick={() => handleProductClick(product)}
-                                >
-                                  <div
-                                    className="sub-box"
-                                    style={{ position: "relative" }}
-                                  >
-                                    <h4 className="p-name">
-                                      {product.name}
-                                      {product.varieties &&
-                                      Array.isArray(product.varieties) &&
-                                      product.varieties[0]?.size
-                                        ? ` (${product.varieties[0].size})`
-                                        : ""}
-                                    </h4>
-                                    <p className="p-name-price">
-                                      Rs.{" "}
-                                      {product.price
-                                        ? product.price // Use product price if it exists
-                                        : product.varieties.length > 0
-                                        ? product.varieties[0].price // Fallback to first variety price
-                                        : "N/A"}{" "}
-                                      {/* Handle case when neither price nor varieties are available */}
-                                    </p>
-                                  </div>
-                                  {productsToSend
-                                    .filter(
-                                      (prod) => prod.name === product.name
-                                    )
-                                    .map((prod, i) => (
-                                      <span key={i} className="quantity-badge">
-                                        <span>
-                                          <FaShoppingCart
-                                            style={{ marginRight: "4px" }}
-                                          />
-                                          {prod.quantity}
-                                        </span>
-                                      </span>
-                                    ))}
-                                </div>
-                              </>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  </>
-                ))
+                      return (
+                        <div
+                          key={idx}
+                          className={`main-box ${
+                            isSelected ? "highlighted" : ""
+                          }`}
+                          onClick={() => handleProductClick(product)}
+                        >
+                          <div
+                            className="sub-box"
+                            style={{ position: "relative" }}
+                          >
+                            <h4 className="p-name">
+                              {product.name}
+                              {product.varieties &&
+                              Array.isArray(product.varieties) &&
+                              product.varieties[0]?.size
+                                ? ` (${product.varieties[0].size})`
+                                : ""}
+                            </h4>
+                            <p className="p-name-price">
+                              Rs.{" "}
+                              {product.price
+                                ? product.price // Use product price if it exists
+                                : product.varieties.length > 0
+                                ? product.varieties[0].price // Fallback to first variety price
+                                : "N/A"}{" "}
+                              {/* Handle case when neither price nor varieties are available */}
+                            </p>
+                          </div>
+                          {productsToSend
+                            .filter((prod) => prod.name === product.name)
+                            .map((prod, i) => (
+                              <span key={i} className="quantity-badge">
+                                <span>
+                                  <FaShoppingCart
+                                    style={{ marginRight: "4px" }}
+                                  />
+                                  {prod.quantity}
+                                </span>
+                              </span>
+                            ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
             ) : (
               <div className="no-data">No data available</div>
             )}
@@ -897,39 +1017,42 @@ const Invoice = () => {
               <>
                 <ul className="product-list" id="sample-section">
                   <hr className="hr" />
-                  <li className="product-item" style={{ display: "flex" }}>
-                    {/* <div
+                  <li
+                    className="product-item-heading"
+                    style={{ display: "flex" }}
+                  >
+                    <div
                       style={{
                         width: "10%",
                       }}
                     >
-                      <span>No.</span>
-                    </div> */}
-                    <div
-                      style={{
-                        width: "60%",
-                        textAlign: "center",
-                      }}
-                    >
-                      <span>Name</span>
+                      <span className="s-s-h-1">No.</span>
                     </div>
                     <div
                       style={{
-                        width: "30%",
+                        width: "50%",
                         textAlign: "center",
                       }}
                     >
-                      <span>Qty</span>
+                      <span className="s-s-h-2">Name</span>
                     </div>
-                    {/* <div
+                    <div
+                      style={{
+                        width: "25%",
+                        textAlign: "center",
+                      }}
+                    >
+                      <span className="s-s-h-3">Qty</span>
+                    </div>
+                    <div
                       style={{
                         width: "15%",
                         textAlign: "right",
                         paddingRight: "10px",
                       }}
                     >
-                      <span>Price</span>
-                    </div> */}
+                      <span className="s-s-h-4">Price</span>
+                    </div>
                   </li>
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
                   <hr className="hr" />
@@ -939,14 +1062,14 @@ const Invoice = () => {
                       className="product-item"
                       style={{ display: "flex" }}
                     >
-                      {/* <div
+                      <div
                         style={{
                           width: "10%",
                         }}
                       >
-                        <span>{index + 1}.</span>
-                      </div> */}
-                      <div style={{ width: "60%" }}>
+                        <span className="s-s-t-1">{index + 1}.</span>
+                      </div>
+                      <div style={{ width: "50%" }}>
                         <span>
                           {product.name}
                           {product.size ? ` (${product.size})` : ""}
@@ -958,7 +1081,7 @@ const Invoice = () => {
                       </div>
                       <div
                         style={{
-                          width: "30%",
+                          width: "25%",
                           textAlign: "center",
                         }}
                       >
@@ -991,31 +1114,35 @@ const Invoice = () => {
                           </button>
                         </div>
                       </div>{" "}
-                      {/* <div
+                      <div
                         style={{
                           width: "15%",
                           textAlign: "right",
+                          paddingRight: "10px",
                         }}
                       >
                         <div>
                           {product.isFreeBogo ? (
-                            <span className="free-label">FREE</span>
+                            <span className="s-s-t-4">FREE</span>
                           ) : (
-                            `${product.price * product.quantity}`
+                            <span className="s-s-t-4">
+                              {product.price * product.quantity}
+                            </span>
                           )}
                         </div>
-                      </div> */}
+                      </div>
                     </li>
                   ))}
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
                   <hr className="hr" />
                   <li className="product-item" style={{ display: "flex" }}>
-                    {/* <div
+                    <div
                       style={{
-                        width: "60%",
+                        width: "85%",
                         textAlign: "center",
                         fontWeight: 800,
                       }}
+                      className="s-s-f-1"
                     >
                       <span>Total</span>
                     </div>
@@ -1024,16 +1151,17 @@ const Invoice = () => {
                         width: "15%",
                         textAlign: "right",
                         fontWeight: 900,
+                        paddingRight: "10px",
                       }}
+                      className="s-s-f-2"
                     >
-                      <span>
-                        {calculateTotalPrice(productsToSend)}
-                      </span>
-                    </div> */}
+                      <span>{calculateTotalPrice(productsToSend)}</span>
+                    </div>
                   </li>
                   {/* <div style={{ textAlign: "center" }}>{dash}</div> */}
                   {/* <hr className="hr" /> */}
                   <div
+                    className="s-s-o-t"
                     style={{
                       textAlign: "center",
                       fontSize: "2rem",
@@ -1155,7 +1283,9 @@ const Invoice = () => {
                         <>
                           <li key={i} className="kot-product-item">
                             <span>
-                              {item.name} x {item.quantity}
+                              {item.name}
+                              {item.size ? ` ~${item.size}` : ""} x{" "}
+                              {item.quantity}
                             </span>
                             <span>
                               ₹{(item.price * item.quantity).toFixed(2)}
@@ -1283,6 +1413,77 @@ const Invoice = () => {
               className="save-btn"
             >
               Save
+            </button>
+          </div>
+        </div>
+      )}
+
+      {bogoPickerOpen && bogoPaidProduct && (
+        <div className="bogo-picker-overlay">
+          <div className="bogo-picker-modal">
+            <h3>Choose your free pizza</h3>
+
+            {(() => {
+              const eligibleSizes =
+                BOGO_ELIGIBLE_PRODUCTS[bogoPaidProduct.name] || [];
+
+              // Get all free options that match the paid pizza's size
+              const freeOptions = Object.entries(BOGO_ELIGIBLE_PRODUCTS)
+                .filter(([pizzaName, sizes]) =>
+                  sizes.includes(bogoPaidProduct.size?.toLowerCase() || "")
+                )
+                .map(([pizzaName]) => pizzaName);
+
+              return freeOptions.length ? (
+                <ul>
+                  {freeOptions.map((name) => (
+                    <li key={name}>
+                      <button
+                        onClick={() => {
+                          // Find the free product in available products
+                          const freeProd = selectedProducts.find(
+                            (p) => p.name === name
+                          );
+
+                          if (!freeProd) return;
+
+                          // Add free pizza to cart
+                          setProductsToSend((prev) => [
+                            ...prev,
+                            {
+                              ...freeProd,
+                              size: bogoPaidProduct.size, // Use same size as paid pizza
+                              price: 0,
+                              isFree: true,
+                              quantity: 1,
+                              originalPrice: freeProd.price,
+                            },
+                          ]);
+                          setBogoDone((prev) =>
+                            new Set(prev).add(bogoPaidProduct.name)
+                          );
+                          setBogoPickerOpen(false);
+                          setBogoPaidProduct(null);
+                        }}
+                      >
+                        {name} ({bogoPaidProduct.size})
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No alternative pizzas available.</p>
+              );
+            })()}
+
+            <button
+              className="close-picker"
+              onClick={() => {
+                setBogoPickerOpen(false);
+                setBogoPaidProduct(null);
+              }}
+            >
+              Cancel
             </button>
           </div>
         </div>
