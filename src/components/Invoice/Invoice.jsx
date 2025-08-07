@@ -155,14 +155,6 @@ const Invoice = () => {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(()=> {
-       setDeliveryBills([])
-       setDineInBills([])
-       setTakeawayBills([])
-           localStorage.removeItem("deliveryKotData")
-       localStorage.removeItem("dineInKotData")
-       localStorage.removeItem("takeawayKotData")
-  },[])
   const EXPIRY_MS = 24 * 60 * 60 * 1000;
 
   useEffect(() => {
