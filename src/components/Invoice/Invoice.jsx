@@ -153,6 +153,9 @@ const Invoice = () => {
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
+      setDeliveryBills([])
+       setDineInBills([])
+       setTakeawayBills([])
            localStorage.removeItem("deliveryKotData")
        localStorage.removeItem("dineInKotData")
        localStorage.removeItem("takeawayKotData")
