@@ -1303,8 +1303,8 @@ const Invoice = () => {
                       <FaTrash
                         className="del-action-icon action-icon"
                         size={20}
-                        onClick={() => deleteKot(idx)}
-                      />
+                        // onClick={() => deleteKot(idx)}
+                        onClick={() => toast.error("Delete Button is currently disable!")}                      />
                       <FaEdit
                         className="edit-action-icon action-icon"
                         size={20}
