@@ -234,7 +234,7 @@
   font-weight: 600;
   font-size: 17px;
   line-height: 25.5px;
-  color: var(--bg);
+  color: var(--text);
 }
 .sub-box h3 {
   margin: 0;
@@ -341,7 +341,7 @@
 }
 
 .invoice-next-btn:hover {
-  background-color: #e03e00; /* darker shade on hover */
+  background-color: #640606; /* darker shade on hover */
   transform: scale(1.03);
 }
 
@@ -919,5 +919,60 @@ background: var(--bg);
 .close-picker {
   margin-top: 20px;
   background: #ff6b6b !important;
+  color: white;
+}
+
+
+
+/* Customer Modal Styles */
+.modal-overlayy {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-contentt {
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 400px;
+}
+
+.modal-contentt input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.modal-buttons button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.modal-buttons button:first-child {
+  background-color: #f44336;
+  color: white;
+}
+
+.modal-buttons button:last-child {
+  background-color: #4CAF50;
   color: white;
 }

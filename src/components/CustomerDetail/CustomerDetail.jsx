@@ -6,7 +6,7 @@ import { handleScreenshot } from "../Utils/DownloadPng"; // Import the function
 import "./Customer.css";
 // import { handleScreenshotAsPDF } from "../Utils/DownloadPdf";
 import Header from "../header/Header";
-import { sendorder, setdata, fetchcustomerdata } from "../../api";
+import { sendorder, setdata, fetchcustomerdata, fetchOrders } from "../../api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaWhatsapp } from "react-icons/fa6";
@@ -38,11 +38,13 @@ const CustomerDetail = () => {
 
   const [discountAmount, setDiscountAmount] = useState("");
   const [discountPercent, setDiscountPercent] = useState("");
-    const location = useLocation();
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateOrderInfo, setDuplicateOrderInfo] = useState(null); // in minutes
+  const [pendingOrder, setPendingOrder] = useState(null); // { order, customer }
+
+  const location = useLocation();
   const { billNo } = location.state || {};
-  console.log("billNo",billNo)
   const [billNumber, setbillNumber] = useState(billNo || "");
-console.log("billNumber",billNumber)
   const invoiceRef = useRef(); // Reference to the hidden invoice content
   const navigate = useNavigate();
 
@@ -57,6 +59,26 @@ console.log("billNumber",billNumber)
     setproductsToSend(storedProducts);
     setTotalAmount(storedAmount);
   }, []);
+
+  useEffect(() => {
+    // Use passed customer info if available
+    if (location.state?.customerInfo) {
+      const { name, phone, address } = location.state.customerInfo;
+      setCustomerName(name || "");
+      setCustomerPhone(phone || "");
+      setCustomerAddress(address || "");
+    }
+    // Otherwise load from localStorage
+    else {
+      const storedCustomerInfo =
+        JSON.parse(localStorage.getItem("customerInfo")) || {};
+      setCustomerName(storedCustomerInfo.name || "");
+      setCustomerPhone(storedCustomerInfo.phone || "");
+      setCustomerAddress(storedCustomerInfo.address || "");
+    }
+
+    // ... rest of your useEffect code
+  }, [location.state]);
 
   useEffect(() => {
     // Fetch customer data from API (or use localStorage fallback)
@@ -193,6 +215,28 @@ console.log("billNumber",billNumber)
     }
   };
 
+  function normalizeSignature(products) {
+    const items = products
+      .map((p) => ({
+        name: p.name,
+        size: p.size || "",
+        price: p.price,
+        quantity: p.quantity,
+      }))
+      .sort((a, b) => (a.name + a.size).localeCompare(b.name + b.size));
+    return JSON.stringify(items);
+  }
+
+  async function getAllOrders() {
+    if (navigator.onLine) {
+      // fetch from server
+      return await fetchOrders();
+    } else {
+      // fetch from IndexedDB
+      return await getAll("orders");
+    }
+  }
+
   const handleSendClick = async () => {
     const { discountValue, netTotal } = computeTotals();
 
@@ -208,6 +252,7 @@ console.log("billNumber",billNumber)
       localStorage.setItem("deliveryCharge", deliveryCharge);
     }
 
+    const now = new Date();
     const orderId = `order_${Date.now()}`;
 
     // Create an order object
@@ -236,10 +281,63 @@ console.log("billNumber",billNumber)
       await addItem("orders", order);
       await addItem("customers", customerDataObject);
       toast.info("You’re offline — order is saved locally ", toastOptions);
-      // setShowPopup(false);
-      // navigate("/invoice");
       return;
     }
+    // ✅ STEP 2: Now safe to fetch orders online
+    let allOrders = [];
+    try {
+      allOrders = await getAllOrders();
+    } catch (err) {
+      console.warn("Failed to fetch orders. Assuming offline.");
+      await addItem("orders", order);
+      await addItem("customers", customerDataObject);
+      toast.info("You’re offline — order saved locally.");
+      return;
+    }
+
+    // 3. check for any duplicate in the last hour, but also grab the matching order
+
+    const newSig = normalizeSignature(productsToSend);
+
+    let prevMatch = null;
+    const ONE_HOUR = 1000 * 60 * 60;
+
+    // find the first duplicate
+    for (let o of allOrders) {
+      if (!o.products) continue;
+      const sig = normalizeSignature(o.products);
+      if (sig === newSig) {
+        const prevTime = Date.parse(o.timestamp);
+        const diffMs = now.getTime() - prevTime;
+
+        if (diffMs > 0 && diffMs <= ONE_HOUR) {
+          prevMatch = { order: o, diffMs };
+          break;
+        }
+      }
+    }
+
+    if (prevMatch) {
+      // compute minutes (rounded)
+      const minutesAgo = Math.round(prevMatch.diffMs / (1000 * 60));
+
+      setDuplicateOrderInfo(minutesAgo);
+      setPendingOrder({ order, customer: customerDataObject });
+      setShowDuplicateModal(true);
+      return;
+    }
+
+    console.log("order created", order);
+    // if (!navigator.onLine) {
+    //   // OFFLINE: just queue for later
+    //   await addItem("orders", order);
+    //   await addItem("customers", customerDataObject);
+    //   toast.info("You’re offline — order is saved locally ");
+    //   // setShowPopup(false);
+    //   // navigate("/invoice");
+    //   return;
+    // }
+
     // ONLINE: send immediately
     setShowPopup(true);
     try {
@@ -248,7 +346,7 @@ console.log("billNumber",billNumber)
     } catch (err) {
       await addItem("orders", order);
       console.error("Error sending online order:", err);
-      toast.info("You’re offline — order is saved locally ", toastOptions);
+      toast.info("You’re offline — order is saved locally ");
     }
   };
 
@@ -256,7 +354,7 @@ console.log("billNumber",billNumber)
     setShowPopup(false);
 
     localStorage.removeItem("productsToSend");
-
+    localStorage.removeItem("customerInfo");
     // Navigate to the invoice page
     navigate("/invoice");
   };
@@ -503,7 +601,13 @@ console.log("billNumber",billNumber)
         ref={invoiceRef}
         style={{ display: "none" }}
       >
-        <div style={{ border: "2px dotted", margin: "0 0 5px 0", padding: ".4rem" }}>
+        <div
+          style={{
+            border: "2px dotted",
+            margin: "0 0 5px 0",
+            padding: ".4rem",
+          }}
+        >
           {logoAvailable && (
             <img
               src="/logo.png"
@@ -687,6 +791,47 @@ console.log("billNumber",billNumber)
             <button onClick={handleClosePopup} style={styles.popupCloseButton}>
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 2) Duplicate‑order modal (on top of everything) */}
+      {showDuplicateModal && (
+        <div className="duplicate-modal-overlay">
+          <div className="duplicate-modal-content">
+            <h2>Duplicate Order Detected</h2>
+            <p>
+              This exact order was placed <strong>{duplicateOrderInfo}</strong>{" "}
+              minute
+              {duplicateOrderInfo === 1 ? "" : "s"} ago.
+            </p>
+            <p>Do you still want to save it again?</p>
+            <div className="duplicate-modal-buttons">
+              <button
+                onClick={() => {
+                  setShowDuplicateModal(false);
+                  setPendingOrder(null);
+                }}
+              >
+                Print Only
+              </button>
+              <button
+                onClick={async () => {
+                  setShowDuplicateModal(false);
+                  if (pendingOrder) {
+                    try {
+                      await sendorder(pendingOrder.order);
+                      await setdata(pendingOrder.customer);
+                    } catch {
+                      await addItem("orders", pendingOrder.order);
+                      toast.info("System Offline! order will Saved offline");
+                    }
+                  }
+                }}
+              >
+                Print & Save
+              </button>
+            </div>
           </div>
         </div>
       )}

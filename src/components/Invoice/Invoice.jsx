@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FaFileInvoice, FaImage, FaTrash } from "react-icons/fa6";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./Invoice.css";
@@ -17,7 +17,7 @@ import {
 // import { AiOutlineBars } from "react-icons/ai";
 import { IoMdCloseCircle } from "react-icons/io";
 import Header from "../header/Header";
-import { fetchProducts, removeProduct } from "../../api";
+import { fetchcustomerdata, fetchProducts, removeProduct } from "../../api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { IoClose } from "react-icons/io5";
@@ -72,6 +72,24 @@ const Invoice = () => {
   const [bogoPickerOpen, setBogoPickerOpen] = useState(false);
   const [bogoPaidProduct, setBogoPaidProduct] = useState(null);
   const [bogoDone, setBogoDone] = useState(new Set());
+  // Add new state variables
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customerInfo, setCustomerInfo] = useState(() => {
+    try {
+      return (
+        JSON.parse(localStorage.getItem("customerInfo")) || {
+          name: "",
+          phone: "",
+          address: "",
+        }
+      );
+    } catch {
+      return { name: "", phone: "", address: "" };
+    }
+  });
+  const phoneInputRef = useRef(null);
+  const [savedCustomers, setSavedCustomers] = useState([]);
+  const [phoneSuggestions, setPhoneSuggestions] = useState([]);
 
   // default to “delivery”
   const [orderType, setOrderType] = useState("delivery");
@@ -155,7 +173,7 @@ const Invoice = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const EXPIRY_MS = 24 * 60 * 60 * 1000;
+  const EXPIRY_MS = 12 * 60 * 60 * 1000;
 
   useEffect(() => {
     const cleanUp = (bills, setBills, storageKey) => {
@@ -339,6 +357,75 @@ const Invoice = () => {
   useEffect(() => {
     localStorage.removeItem("selectedVariety");
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCustomers = async () => {
+      try {
+        const resp = await fetchcustomerdata();
+        const list = Array.isArray(resp) ? resp : resp?.data || [];
+        if (!cancelled) setSavedCustomers(list);
+      } catch (err) {
+        // fallback to IndexedDB/localStorage
+        const offline = await getAll("customers");
+        if (!cancelled && offline && offline.length) {
+          setSavedCustomers(offline);
+          return;
+        }
+        const local = JSON.parse(localStorage.getItem("customers")) || [];
+        if (!cancelled && local.length) setSavedCustomers(local);
+      }
+    };
+
+    loadCustomers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // call this from phone input's onChange
+  const handleCustomerPhoneChange = (e) => {
+    const phoneValue = e.target.value;
+    // allow only digits, max 10
+    if (/^\d*$/.test(phoneValue) && phoneValue.length <= 10) {
+      setCustomerInfo((prev) => ({ ...prev, phone: phoneValue }));
+
+      // immediately hide suggestions when we reach 10 digits
+      if (phoneValue.length === 10) {
+        setPhoneSuggestions([]);
+        // blur to collapse mobile suggestion/keyboard UI if needed
+        if (phoneInputRef.current) phoneInputRef.current.blur();
+      }
+    }
+  };
+
+  // recompute suggestions whenever phone changes
+  useEffect(() => {
+    const q = (customerInfo.phone || "").trim();
+    if (q === "" || q.length >= 10) {
+      setPhoneSuggestions([]);
+      return;
+    }
+
+    // show suggestions from savedCustomers that start with the typed prefix
+    const matches = savedCustomers
+      .filter((c) => String(c.phone || "").startsWith(q))
+      .slice(0, 6); // limit to 6 suggestions
+    setPhoneSuggestions(matches);
+  }, [customerInfo.phone, savedCustomers]);
+
+  const handleSuggestionClick = (cust) => {
+    setCustomerInfo({
+      name: cust.name || "",
+      phone: String(cust.phone || ""),
+      address: cust.address || "",
+    });
+    setPhoneSuggestions([]);
+    if (phoneInputRef.current) {
+      phoneInputRef.current.blur();
+    }
+  };
 
   const handleVarietyQuantityChange = (variety, delta, productId) => {
     setSelectedVariety((prev) => {
@@ -596,8 +683,17 @@ const Invoice = () => {
     return [];
   };
 
-  // New: KOT (Kitchen Order Ticket) print handler
   const handleKot = () => {
+    if (!editingBillNo) {
+      const empty = { name: "", phone: "", address: "" };
+      setCustomerInfo(empty);
+      localStorage.removeItem("customerInfo");
+    }
+    // show customer modal
+    setShowCustomerModal(true);
+  };
+
+  const handleCustomerSubmit = () => {
     const todayKey = new Date().toLocaleDateString();
     const counter = JSON.parse(localStorage.getItem("kotCounter")) || {
       date: todayKey,
@@ -629,6 +725,9 @@ const Invoice = () => {
       date: new Date().toLocaleString(),
       items: productsToSend,
       orderType,
+      customerName: customerInfo.name,
+      customerPhone: customerInfo.phone,
+      customerAddress: customerInfo.address,
     };
 
     if (orderType === "delivery") {
@@ -647,8 +746,9 @@ const Invoice = () => {
 
     // Clear current productsToSend
     setProductsToSend([]);
-    localStorage.setItem("productsToSend", JSON.stringify([]));
-
+    localStorage.removeItem("productsToSend");
+    setShowCustomerModal(false);
+    setPhoneSuggestions([]);
     const printArea = document.getElementById("sample-section");
     if (!printArea) {
       console.warn("No sample-section found to print.");
@@ -656,55 +756,77 @@ const Invoice = () => {
     }
 
     const header = `
-  <div style="text-align:center; font-weight:700; margin-bottom:8px;">
-  Bill No. ${billNo}
-  </div>
+<div style="text-align:center; font-weight:700; margin-bottom:8px;">
+Bill No. ${billNo}
+</div>
 `;
 
-    const printContent = header + printArea.innerHTML;
+    const printContent =
+      header +
+      (customerInfo.name ? `<div>Name: ${customerInfo.name}</div>` : "") +
+      (customerInfo.phone ? `<div>Phone: ${customerInfo.phone}</div>` : "") +
+      (customerInfo.address
+        ? `<div>Address: ${customerInfo.address}</div>`
+        : "") +
+      printArea.innerHTML;
+
     const win = window.open("", "", "width=600,height=400");
     const style = `<style>
-  @page { size: 70mm 400mm; margin:0; }
-  @media print {
-    body{ width: 70mm !important; margin:0; padding:4mm; font-size:1rem; }
-    .product-item{ display:flex; justify-content:space-between; margin-bottom:1rem;}
-    .hr{ border:none; border-bottom:1px solid #000; margin:2px 0;}
-    .invoice-btn{ display:none; }
-      .icon{
-        display: none !important;
-  }
-        .icon span {
-        display: block;
-        }
+@page { size: 70mm 400mm; margin:0; }
+@media print {
+  body{ width: 70mm !important; margin:0; padding:4mm; font-size:1rem; }
+  .product-item{ display:flex; justify-content:space-between; margin-bottom:1rem;}
+  .hr{ border:none; border-bottom:1px solid #000; margin:2px 0;}
+  .invoice-btn{ display:none; }
+    .icon{
+      display: none !important;
+}
+      .icon span {
+      display: block;
+      }
 .s-s-h-1, .s-s-t-1, .s-s-f-1, .s-s-f-2 {
-  display: none !important;
+display: none !important;
 }
 </style>`;
 
     win.document.write(
       `<html>
-      <head>
-      <title>KOT Ticket</title>
-     ${style}
-        </head>
-        <body>
-        ${printContent}
-        </body>
-        </html>`
+    <head>
+    <title>KOT Ticket</title>
+    ${style}
+      </head>
+      <body>
+      ${printContent}
+      </body>
+      </html>`
     );
     win.document.close();
     win.focus();
     win.print();
     win.close();
+
+    const empty = { name: "", phone: "", address: "" };
+    setCustomerInfo(empty);
+    localStorage.removeItem("customerInfo");
   };
 
   const handleCreateInvoice = (orderItems, type) => {
+    // Extract customer details from KOT entry
+    const { customerName, customerPhone, customerAddress } = orderItems;
     // save the items and the order type
     localStorage.setItem("productsToSend", JSON.stringify(orderItems.items));
     localStorage.setItem("orderType", type);
     // also pass via react-router state (optional, but nice)
     navigate("/customer-detail", {
-      state: { orderType: type, billNo: orderItems.billNo },
+      state: {
+        orderType: type,
+        billNo: orderItems.billNo,
+        customerInfo: {
+          name: customerName,
+          phone: customerPhone,
+          address: customerAddress,
+        },
+      },
     });
     console.log("handleCreateInvoice", orderItems.billNo);
     setShowKotModal(false);
@@ -746,6 +868,15 @@ const Invoice = () => {
     // Load into current products
     setProductsToSend(order.items);
     localStorage.setItem("productsToSend", JSON.stringify(order.items));
+
+    // --- NEW: restore customer info from the KOT entry ---
+    const restoredCustomer = {
+      name: order.customerName || order.customerInfo?.name || "",
+      phone: order.customerPhone || order.customerInfo?.phone || "",
+      address: order.customerAddress || order.customerInfo?.address || "",
+    };
+    setCustomerInfo(restoredCustomer);
+    localStorage.setItem("customerInfo", JSON.stringify(restoredCustomer));
     setShowKotModal(false);
   };
 
@@ -1278,6 +1409,16 @@ const Invoice = () => {
                       Bill No. {order.billNo}
                       <span className="kot-date">{order.date}</span>
                     </h4>
+                    <h4>
+                      {order.customerName && (
+                        <p style={{ fontWeight: 700 }}>{order.customerName}</p>
+                      )}
+                      {order.customerPhone && (
+                        <p style={{ fontWeight: 700 }}>{order.customerPhone}</p>
+                      )}
+                    </h4>
+
+                    <hr />
                     <ul>
                       {order.items.map((item, i) => (
                         <>
@@ -1303,7 +1444,10 @@ const Invoice = () => {
                       <FaTrash
                         className="del-action-icon action-icon"
                         size={20}
-                        onClick={() => deleteKot(idx)}
+                        // onClick={() => deleteKot(idx)}
+                        onClick={() =>
+                          toast.error("Delete Button is currently disable!")
+                        }
                       />
                       <FaEdit
                         className="edit-action-icon action-icon"
@@ -1485,6 +1629,79 @@ const Invoice = () => {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {showCustomerModal && (
+        <div className="modal-overlayy">
+          <div className="modal-contentt" onClick={(e) => e.stopPropagation()}>
+            <h3>Customer Details</h3>
+            <input
+              type="text"
+              placeholder="Customer Name"
+              value={customerInfo.name}
+              onChange={(e) =>
+                setCustomerInfo({ ...customerInfo, name: e.target.value })
+              }
+            />
+            <input
+              type="text"
+              placeholder="Customer Phone"
+              value={customerInfo.phone}
+              onChange={handleCustomerPhoneChange}
+            />
+            {phoneSuggestions.length > 0 && (
+              <ul
+                className="suggestions"
+                style={{
+                  position: "relative",
+                  zIndex: 3000,
+                  background: "#fff",
+                  border: "1px solid #ddd",
+                  listStyle: "none",
+                  margin: "6px 0",
+                  padding: 0,
+                  width: "100%",
+                  maxHeight: "150px",
+                  overflowY: "auto",
+                  borderRadius: "8px",
+                }}
+              >
+                {phoneSuggestions.map((s) => (
+                  <li
+                    key={s.phone + (s.name || "")}
+                    onClick={() => handleSuggestionClick(s)}
+                    style={{
+                      padding: ".5rem",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #f0f0f0",
+                    }}
+                  >
+                    <strong>{s.phone}</strong> — {s.name || "No name"}
+                    {s.address ? (
+                      <div style={{ fontSize: "0.9rem", color: "#666" }}>
+                        {s.address}
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <input
+              type="text"
+              placeholder="Customer Address"
+              value={customerInfo.address}
+              onChange={(e) =>
+                setCustomerInfo({ ...customerInfo, address: e.target.value })
+              }
+            />
+            <div className="modal-buttons">
+              <button onClick={() => setShowCustomerModal(false)}>
+                Cancel
+              </button>
+              <button onClick={handleCustomerSubmit}>Save & Print KOT</button>
+            </div>
           </div>
         </div>
       )}
