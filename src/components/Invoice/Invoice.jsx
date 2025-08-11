@@ -1444,10 +1444,7 @@ display: none !important;
                       <FaTrash
                         className="del-action-icon action-icon"
                         size={20}
-                        // onClick={() => deleteKot(idx)}
-                        onClick={() =>
-                          toast.error("Delete Button is currently disable!")
-                        }
+                        onClick={() => deleteKot(idx)}
                       />
                       <FaEdit
                         className="edit-action-icon action-icon"
