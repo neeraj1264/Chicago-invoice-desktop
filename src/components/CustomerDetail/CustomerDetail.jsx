@@ -43,8 +43,9 @@ const CustomerDetail = () => {
   const [pendingOrder, setPendingOrder] = useState(null); // { order, customer }
 
   const location = useLocation();
-  const { billNo } = location.state || {};
+  const { billNo, orderNo } = location.state || {};
   const [billNumber, setbillNumber] = useState(billNo || "");
+  const [orderNumber, setorderNumber] = useState(orderNo || "");
   const invoiceRef = useRef(); // Reference to the hidden invoice content
   const navigate = useNavigate();
 
@@ -183,6 +184,7 @@ const CustomerDetail = () => {
 
     // Build the WhatsApp message in the same order as the invoice
     let msg = `Bill-No: *${billNumber}*\n`;
+    msg += `Order-No: *RT-${orderNumber}*\n`;
     msg += `Order-Type: *${orderType}*\n`;
     msg += `Amount: *${netTotal.toFixed(2)}*`;
     if (customerPhone) msg += `\nPhone: *${customerPhone}*`;
@@ -641,6 +643,10 @@ const CustomerDetail = () => {
             Invoice Details
           </h2>
           <div className="customer-info">
+            <p style={{ fontSize: "16px", margin: "0" }}>
+              Order No:&nbsp;&nbsp;{" "}
+              <span style={{ fontWeight: "bold" }}>RT-{orderNumber}</span>
+            </p>
             <p style={{ fontSize: "16px", margin: "0" }}>
               Bill No:&nbsp;&nbsp;{" "}
               <span style={{ fontWeight: "bold" }}>#{billNumber}</span>

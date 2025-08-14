@@ -25,6 +25,7 @@ import { getAll, saveItems } from "../../DB";
 import { useOnlineStatus } from "../../useOnlineStatus";
 import { CATEGORY_HIERARCHY } from "../Utils/categoryHierarchy";
 import { motion, AnimatePresence } from "framer-motion";
+import { getNextOrderNumber } from "../Utils/OrderNumber";
 
 const toastOptions = {
   position: "bottom-right",
@@ -123,6 +124,7 @@ const Invoice = () => {
   const [showKotModal, setShowKotModal] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [editingBillNo, setEditingBillNo] = useState(null);
+  const [editingOrderNumber, setEditingOrderNumber] = useState(null);
 
   const navigate = useNavigate(); // For navigation
 
@@ -701,9 +703,12 @@ const Invoice = () => {
     };
     let nextNo;
 
+    let orderNumberToUse;
+
     if (editingBillNo) {
       // we’re re‐printing an edited ticket: reuse its original number
       nextNo = editingBillNo;
+      orderNumberToUse = editingOrderNumber ?? getNextOrderNumber();
     } else {
       // brand‐new KOT: bump (or reset) the counter
       nextNo = counter.date === todayKey ? counter.lastNo + 1 : 51;
@@ -711,16 +716,19 @@ const Invoice = () => {
         "kotCounter",
         JSON.stringify({ date: todayKey, lastNo: nextNo })
       );
+      orderNumberToUse = getNextOrderNumber();
     }
 
     // after we’ve captured it, clear edit mode so only this one re‐print reuses it
     setEditingBillNo(null);
+    setEditingOrderNumber(null);
 
     const billNo = String(nextNo).padStart(4, "0");
 
     // Append current order snapshot
     const kotEntry = {
       billNo: billNo,
+      orderNo: orderNumberToUse,
       timestamp: Date.now(),
       date: new Date().toLocaleString(),
       items: productsToSend,
@@ -765,9 +773,6 @@ Bill No. ${billNo}
       header +
       (customerInfo.name ? `<div>Name: ${customerInfo.name}</div>` : "") +
       (customerInfo.phone ? `<div>Phone: ${customerInfo.phone}</div>` : "") +
-      (customerInfo.address
-        ? `<div>Address: ${customerInfo.address}</div>`
-        : "") +
       printArea.innerHTML;
 
     const win = window.open("", "", "width=600,height=400");
@@ -821,6 +826,8 @@ display: none !important;
       state: {
         orderType: type,
         billNo: orderItems.billNo,
+        orderNo: orderItems.orderNo,
+
         customerInfo: {
           name: customerName,
           phone: customerPhone,
@@ -850,6 +857,7 @@ display: none !important;
 
   const editKot = (order, idx) => {
     setEditingBillNo(order.billNo);
+    setEditingOrderNumber(order.orderNo ?? null);
     // Remove from the correct list
     if (modalType === "delivery") {
       const updated = deliveryBills.filter((_, i) => i !== idx);
@@ -1409,6 +1417,7 @@ display: none !important;
                       Bill No. {order.billNo}
                       <span className="kot-date">{order.date}</span>
                     </h4>
+                    <h4>Order No. RT-{order.orderNo}</h4>
                     <h4>
                       {order.customerName && (
                         <p style={{ fontWeight: 700 }}>{order.customerName}</p>
