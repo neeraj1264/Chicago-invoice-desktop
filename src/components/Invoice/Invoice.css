@@ -659,6 +659,8 @@ input[type="checkbox"] {
 }
 .invoice-action-icon {
   color: #3498db;
+  border: none;
+  background: transparent;
 }
 
 .kot-timer span {
@@ -944,6 +946,7 @@ background: var(--bg);
   border-radius: 10px;
   width: 90%;
   max-width: 400px;
+  position: relative;
 }
 
 .modal-contentt input {
@@ -975,4 +978,50 @@ background: var(--bg);
 .modal-buttons button:last-child {
   background-color: #4CAF50;
   color: white;
+}
+
+
+
+
+
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  border-radius: 8px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
+.modal-contentt input:disabled {
+  background-color: #f0f0f0;
+  cursor: not-allowed;
+}
+
+.modal-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

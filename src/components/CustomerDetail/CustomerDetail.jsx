@@ -12,6 +12,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { FaWhatsapp } from "react-icons/fa6";
 import { IoPrint } from "react-icons/io5";
 import { addItem, getAll, saveItems } from "../../DB";
+import PrintButton from "../Utils/PrintButton";
 
 const toastOptions = {
   position: "bottom-right",
@@ -260,6 +261,9 @@ const CustomerDetail = () => {
     // Create an order object
     const order = {
       id: orderId,
+      orderNumber,
+      billNumber,
+      orderType,
       products: productsToSend,
       totalAmount: netTotal,
       name: customerName,
@@ -789,10 +793,7 @@ const CustomerDetail = () => {
               <FaCloudDownloadAlt style={{ fontSize: "1.5rem" }} />
               <span style={{ marginLeft: "1rem" }}>Download</span>
             </button>
-            <button onClick={MobilePrint} style={styles.popupButton}>
-              <IoPrint style={{ fontSize: "1.5rem" }} />{" "}
-              <span style={{ marginLeft: "1rem" }}>Print</span>
-            </button>
+<PrintButton elementId="mobileinvoice" label="Print" className="invoice-print-btn" />
 
             <button onClick={handleClosePopup} style={styles.popupCloseButton}>
               Cancel

@@ -13,19 +13,28 @@ import {
   FaShoppingCart,
   FaChevronDown,
   FaChevronUp,
+  FaWhatsapp,
 } from "react-icons/fa";
 // import { AiOutlineBars } from "react-icons/ai";
 import { IoMdCloseCircle } from "react-icons/io";
 import Header from "../header/Header";
-import { fetchcustomerdata, fetchProducts, removeProduct } from "../../api";
+import {
+  fetchcustomerdata,
+  fetchProducts,
+  removeProduct,
+  setdata,
+  sendorder,
+} from "../../api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { IoClose } from "react-icons/io5";
-import { getAll, saveItems } from "../../DB";
+import { getAll, saveItems, addItem } from "../../DB";
 import { useOnlineStatus } from "../../useOnlineStatus";
 import { CATEGORY_HIERARCHY } from "../Utils/categoryHierarchy";
 import { motion, AnimatePresence } from "framer-motion";
 import { getNextOrderNumber } from "../Utils/OrderNumber";
+import PrintButton from "../Utils/PrintButton";
+import { formatOrderMessage, openWhatsApp } from "../Utils/whatsapp";
 
 const toastOptions = {
   position: "bottom-right",
@@ -75,6 +84,8 @@ const Invoice = () => {
   const [bogoDone, setBogoDone] = useState(new Set());
   // Add new state variables
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const invoiceRef = useRef();
   const [customerInfo, setCustomerInfo] = useState(() => {
     try {
       return (
@@ -695,88 +706,137 @@ const Invoice = () => {
     setShowCustomerModal(true);
   };
 
-  const handleCustomerSubmit = () => {
-    const todayKey = new Date().toLocaleDateString();
-    const counter = JSON.parse(localStorage.getItem("kotCounter")) || {
-      date: todayKey,
-      lastNo: 50,
-    };
-    let nextNo;
+  const handleCustomerSubmit = async () => {
+    setIsSaving(true);
 
-    let orderNumberToUse;
+    try {
+      const todayKey = new Date().toLocaleDateString();
+      const counter = JSON.parse(localStorage.getItem("kotCounter")) || {
+        date: todayKey,
+        lastNo: 50,
+      };
+      let nextNo;
 
-    if (editingBillNo) {
-      // we’re re‐printing an edited ticket: reuse its original number
-      nextNo = editingBillNo;
-      orderNumberToUse = editingOrderNumber ?? getNextOrderNumber();
-    } else {
-      // brand‐new KOT: bump (or reset) the counter
-      nextNo = counter.date === todayKey ? counter.lastNo + 1 : 51;
-      localStorage.setItem(
-        "kotCounter",
-        JSON.stringify({ date: todayKey, lastNo: nextNo })
-      );
-      orderNumberToUse = getNextOrderNumber();
-    }
+      let orderNumberToUse;
 
-    // after we’ve captured it, clear edit mode so only this one re‐print reuses it
-    setEditingBillNo(null);
-    setEditingOrderNumber(null);
+      if (editingBillNo) {
+        // we’re re‐printing an edited ticket: reuse its original number
+        nextNo = editingBillNo;
+        orderNumberToUse = editingOrderNumber ?? getNextOrderNumber();
+      } else {
+        // brand‐new KOT: bump (or reset) the counter
+        nextNo = counter.date === todayKey ? counter.lastNo + 1 : 51;
+        localStorage.setItem(
+          "kotCounter",
+          JSON.stringify({ date: todayKey, lastNo: nextNo })
+        );
+        orderNumberToUse = getNextOrderNumber();
+      }
 
-    const billNo = String(nextNo).padStart(4, "0");
+      // after we’ve captured it, clear edit mode so only this one re‐print reuses it
+      setEditingBillNo(null);
+      setEditingOrderNumber(null);
 
-    // Append current order snapshot
-    const kotEntry = {
-      billNo: billNo,
-      orderNo: orderNumberToUse,
-      timestamp: Date.now(),
-      date: new Date().toLocaleString(),
-      items: productsToSend,
-      orderType,
-      customerName: customerInfo.name,
-      customerPhone: customerInfo.phone,
-      customerAddress: customerInfo.address,
-    };
+      const billNo = String(nextNo).padStart(4, "0");
+      const orderId = `order_${Date.now()}`;
 
-    if (orderType === "delivery") {
-      const next = [...deliveryBills, kotEntry];
-      setDeliveryBills(next);
-      localStorage.setItem("deliveryKotData", JSON.stringify(next));
-    } else if (orderType === "dine-in") {
-      const next = [...dineInBills, kotEntry];
-      setDineInBills(next);
-      localStorage.setItem("dineInKotData", JSON.stringify(next));
-    } else if (orderType === "takeaway") {
-      const next = [...takeawayBills, kotEntry];
-      setTakeawayBills(next);
-      localStorage.setItem("takeawayKotData", JSON.stringify(next));
-    }
+      const orderData = {
+        id: orderId,
+        orderNumber: orderNumberToUse,
+        billNumber: billNo,
+        orderType,
+        products: productsToSend,
+        totalAmount: calculateTotalPrice(productsToSend),
+        name: customerInfo.name,
+        phone: customerInfo.phone,
+        address: customerInfo.address,
+        timestamp: new Date().toISOString(),
+      };
+      const customerData = {
+        id: orderId,
+        name: customerInfo.name,
+        phone: customerInfo.phone,
+        address: customerInfo.address,
+        timestamp: new Date().toISOString(),
+      };
 
-    // Clear current productsToSend
-    setProductsToSend([]);
-    localStorage.removeItem("productsToSend");
-    setShowCustomerModal(false);
-    setPhoneSuggestions([]);
-    const printArea = document.getElementById("sample-section");
-    if (!printArea) {
-      console.warn("No sample-section found to print.");
-      return;
-    }
+      // Save data to database - with improved error handling
+      try {
+        if (navigator.onLine) {
+          try {
+            // Online - save to server
+            await sendorder(orderData);
+            await setdata(customerData);
+          } catch (serverError) {
+            console.error("Server error, saving locally:", serverError);
+            // If server fails, save to IndexedDB instead
+            await addItem("orders", orderData);
+            await addItem("customers", customerData);
+            toast.info("You're offline - order saved locally", toastOptions);
+          }
+        } else {
+          // Offline - save to IndexedDB
+          await addItem("orders", orderData);
+          await addItem("customers", customerData);
+          toast.info("You're offline - data saved locally", toastOptions);
+        }
+      } catch (error) {
+        console.error("Error saving data:", error);
+        toast.error("Error saving data", toastOptions);
+      }
 
-    const header = `
+      // Append current order snapshot
+      const kotEntry = {
+        billNo: billNo,
+        orderNo: orderNumberToUse,
+        timestamp: Date.now(),
+        date: new Date().toLocaleString(),
+        items: productsToSend,
+        orderType,
+        customerName: customerInfo.name,
+        customerPhone: customerInfo.phone,
+        customerAddress: customerInfo.address,
+      };
+
+      if (orderType === "delivery") {
+        const next = [...deliveryBills, kotEntry];
+        setDeliveryBills(next);
+        localStorage.setItem("deliveryKotData", JSON.stringify(next));
+      } else if (orderType === "dine-in") {
+        const next = [...dineInBills, kotEntry];
+        setDineInBills(next);
+        localStorage.setItem("dineInKotData", JSON.stringify(next));
+      } else if (orderType === "takeaway") {
+        const next = [...takeawayBills, kotEntry];
+        setTakeawayBills(next);
+        localStorage.setItem("takeawayKotData", JSON.stringify(next));
+      }
+
+      // Clear current productsToSend
+      setProductsToSend([]);
+      localStorage.removeItem("productsToSend");
+      setShowCustomerModal(false);
+      setPhoneSuggestions([]);
+      const printArea = document.getElementById("sample-section");
+      if (!printArea) {
+        console.warn("No sample-section found to print.");
+        return;
+      }
+
+      const header = `
 <div style="text-align:center; font-weight:700; margin-bottom:8px;">
 Bill No. ${billNo}
 </div>
 `;
 
-    const printContent =
-      header +
-      (customerInfo.name ? `<div>Name: ${customerInfo.name}</div>` : "") +
-      (customerInfo.phone ? `<div>Phone: ${customerInfo.phone}</div>` : "") +
-      printArea.innerHTML;
+      const printContent =
+        header +
+        (customerInfo.name ? `<div>Name: ${customerInfo.name}</div>` : "") +
+        (customerInfo.phone ? `<div>Phone: ${customerInfo.phone}</div>` : "") +
+        printArea.innerHTML;
 
-    const win = window.open("", "", "width=600,height=400");
-    const style = `<style>
+      const win = window.open("", "", "width=600,height=400");
+      const style = `<style>
 @page { size: 70mm 400mm; margin:0; }
 @media print {
   body{ width: 70mm !important; margin:0; padding:4mm; font-size:1rem; }
@@ -794,8 +854,8 @@ display: none !important;
 }
 </style>`;
 
-    win.document.write(
-      `<html>
+      win.document.write(
+        `<html>
     <head>
     <title>KOT Ticket</title>
     ${style}
@@ -804,15 +864,21 @@ display: none !important;
       ${printContent}
       </body>
       </html>`
-    );
-    win.document.close();
-    win.focus();
-    win.print();
-    win.close();
+      );
+      win.document.close();
+      win.focus();
+      win.print();
+      win.close();
 
-    const empty = { name: "", phone: "", address: "" };
-    setCustomerInfo(empty);
-    localStorage.removeItem("customerInfo");
+      const empty = { name: "", phone: "", address: "" };
+      setCustomerInfo(empty);
+      localStorage.removeItem("customerInfo");
+    } catch (error) {
+      console.error("Error in KOT process:", error);
+      toast.error("Error processing KOT", toastOptions);
+    } finally {
+      setIsSaving(false); // End loading regardless of success/error
+    }
   };
 
   const handleCreateInvoice = (orderItems, type) => {
@@ -1450,20 +1516,48 @@ display: none !important;
                       <strong>₹{totalAmount.toFixed(2)}</strong>
                     </div>
                     <div className="kot-entry-actions">
-                      <FaTrash
-                        className="del-action-icon action-icon"
-                        size={20}
-                        onClick={() => deleteKot(idx)}
-                      />
-                      <FaEdit
-                        className="edit-action-icon action-icon"
-                        size={20}
-                        onClick={() => editKot(order, idx)}
-                      />
-                      <FaFileInvoice
+                      <button
+                        onClick={() => {
+                          // Build an order-like object from your stored order shape
+                          const orderObj = {
+                            billNumber: order.billNo,
+                            orderNumber: order.orderNo,
+                            orderType: modalType,
+                            name: order.customerName,
+                            phone: order.customerPhone,
+                            address: order.customerAddress,
+                            items: order.items || order.products || [],
+                            delivery: order.delivery || 0,
+                            discount: order.discount || 0,
+                          };
+                          const msg = formatOrderMessage(orderObj);
+                          openWhatsApp(order.customerPhone, msg);
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "green",
+                        }}
+                        title="Send via WhatsApp"
+                      >
+                        <FaWhatsapp style={{ fontSize: "1.5rem" }} />
+                      </button>
+                      <PrintButton
+                        order={{
+                          orderNumber: order.orderNo,
+                          billNumber: order.billNo,
+                          orderType: modalType,
+                          products: order.items,
+                          name: order.customerName,
+                          phone: order.customerPhone,
+                          address: order.customerAddress,
+                          timestamp: order.timestamp,
+                          delivery: order.delivery || 0,
+                          discount: order.discount || 0,
+                        }}
+                        label={<FaFileInvoice size={20} />}
                         className="invoice-action-icon action-icon"
-                        size={20}
-                        onClick={() => handleCreateInvoice(order, modalType)}
                       />
                     </div>
                   </div>
@@ -1643,6 +1737,13 @@ display: none !important;
         <div className="modal-overlayy">
           <div className="modal-contentt" onClick={(e) => e.stopPropagation()}>
             <h3>Customer Details</h3>
+            {/* Loading overlay */}
+            {isSaving && (
+              <div className="loading-overlay">
+                <div className="loading-spinner"></div>
+                <p>Saving and printing KOT...</p>
+              </div>
+            )}
             <input
               type="text"
               placeholder="Customer Name"
@@ -1650,12 +1751,14 @@ display: none !important;
               onChange={(e) =>
                 setCustomerInfo({ ...customerInfo, name: e.target.value })
               }
+              disabled={isSaving}
             />
             <input
               type="text"
               placeholder="Customer Phone"
               value={customerInfo.phone}
               onChange={handleCustomerPhoneChange}
+              disabled={isSaving}
             />
             {phoneSuggestions.length > 0 && (
               <ul
@@ -1701,12 +1804,18 @@ display: none !important;
               onChange={(e) =>
                 setCustomerInfo({ ...customerInfo, address: e.target.value })
               }
+              disabled={isSaving}
             />
             <div className="modal-buttons">
-              <button onClick={() => setShowCustomerModal(false)}>
+              <button
+                onClick={() => setShowCustomerModal(false)}
+                disabled={isSaving}
+              >
                 Cancel
               </button>
-              <button onClick={handleCustomerSubmit}>Save & Print KOT</button>
+              <button onClick={handleCustomerSubmit} disabled={isSaving}>
+                {isSaving ? "Processing..." : "Save & Print KOT"}
+              </button>
             </div>
           </div>
         </div>

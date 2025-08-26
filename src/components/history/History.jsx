@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { BASE_URL, fetchOrders, removeOrder, sendorder } from "../../api";
 import Header from "../header/Header";
 import { clearStore, deleteItem, getAll, saveItems } from "../../DB";
+import PrintButton from "../Utils/PrintButton";
 
 const History = () => {
   const [orders, setOrders] = useState([]);
@@ -280,92 +281,115 @@ const History = () => {
 
             {filteredOrders.length > 0 ? (
               [...filteredOrders].reverse().map((order, index) => (
-                <div
-                  key={order.id}
-                  className="order-section"
-                  onMouseDown={handlePressStart}
-                  onMouseUp={handlePressEnd}
-                  onTouchStart={handlePressStart}
-                  onTouchEnd={handlePressEnd}
-                >
-                  <hr />
-                  <div onClick={() => toggleOrder(order.id)}>
-                    <h2 style={{ cursor: "pointer", fontSize: "1rem" }}>
-                      Order {filteredOrders.length - index} -{" "}
-                      <span>{formatDate(order.timestamp)}</span>
-                    </h2>
-                    <p>
-                      <strong>Amount Received: ₹{order.totalAmount}</strong>{" "}
-                      {order.phone && (
-                        <FaWhatsapp
-                          className="whatsapp"
-                          onClick={() => handleWhatsappClick(order)}
-                        />
-                      )}{" "}
-                    </p>
-                    {showRemoveBtn && (
-                      <button
-                        className="remove-btn"
-                        onClick={() => handleRemoveOrder(order.id)}
-                      >
-                        Remove Order
-                      </button>
-                    )}
-                  </div>
+             <div
+  key={order.id}
+  className="order-section"
+  onMouseDown={handlePressStart}
+  onMouseUp={handlePressEnd}
+  onTouchStart={handlePressStart}
+  onTouchEnd={handlePressEnd}
+>
+  <hr />
 
-                  {expandedOrderId === order.id && ( // Render table only if this order is expanded
-                    <table className="products-table">
-                      <thead>
-                        <tr>
-                          <th>No.</th>
-                          <th>Items</th>
-                          <th>Price</th>
-                          <th>Qty</th>
-                          <th>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {order.products.map((product, idx) => (
-                          <tr key={idx}>
-                            <td>{idx + 1}.</td>
-                            <td>
-                              {product.size
-                                ? `${product.name} (${product.size})`
-                                : product.name}
-                            </td>
-                            <td>{product.price}</td>
-                            <td>{product.quantity}</td>
-                            <td>{product.price * product.quantity}</td>
-                          </tr>
-                        ))}
+  {/* CLICK TO EXPAND AREA */}
+  <div className="order-card" onClick={() => toggleOrder(order.id)}>
+    {/* Row 1 */}
+    <div className="order-row">
+      <strong>Order {filteredOrders.length - index}</strong>
+      <span className="badge bill-badge">Bill.no #{order.billNumber}</span>
+      <span className="badge order-badge">Order.id RT_{order.orderNumber}</span>
+      <span className="order-date">{formatDate(order.timestamp)}</span>
+    </div>
 
-                        {/* DELIVERY ROW */}
-                        {order.delivery > 0 && (
-                          <tr>
-                            <td colSpan={4} style={{textAlign: "right"}}>
-                              <strong>Delivery Charge:</strong>
-                            </td>
-                            <td style={{ textAlign: "right" }}>
-                              <strong>+{order.delivery}</strong>
-                            </td>
-                          </tr>
-                        )}
+    {/* Row 2 */}
+    <div className="order-row">
+      <strong>Amount Received: ₹{order.totalAmount}</strong>
+      {order.phone && (
+        <FaWhatsapp
+          className="whatsapp"
+          onClick={(e) => {
+            e.stopPropagation(); // ✅ prevent triggering expand
+            handleWhatsappClick(order);
+          }}
+        />
+      )}
+    </div>
+  </div>
 
-                        {/* DISCOUNT ROW */}
-                        {order.discount > 0 && (
-                          <tr>                           
-                            <td colSpan={4} style={{textAlign: "right"}}>
-                              <strong>Discount:</strong>
-                            </td>
-                            <td style={{ textAlign: "right" }}>
-                              <strong>-{order.discount}</strong>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
+
+  {/* EXPANDED SECTION */}
+  {expandedOrderId === order.id && (
+    <>
+      {(order.name || order.phone || order.address) && (
+        <div className="customer-details" style={{ fontSize: "0.9rem", color: "#444" }}>
+          {order.name && <p><strong>Customer:</strong> {order.name}</p>}
+          {order.phone && <p><strong>Phone:</strong> {order.phone}</p>}
+          {order.address && <p><strong>Address:</strong> {order.address}</p>}
+        </div>
+      )}
+
+      <table className="products-table">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Items</th>
+            <th>Price</th>
+            <th>Qty</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {order.products.map((product, idx) => (
+            <tr key={idx}>
+              <td>{idx + 1}.</td>
+              <td>
+                {product.size
+                  ? `${product.name} (${product.size})`
+                  : product.name}
+              </td>
+              <td>{product.price}</td>
+              <td>{product.quantity}</td>
+              <td>{product.price * product.quantity}</td>
+            </tr>
+          ))}
+
+          {/* DELIVERY ROW */}
+          {order.delivery > 0 && (
+            <tr>
+              <td colSpan={4} style={{ textAlign: "right" }}>
+                <strong>Delivery Charge:</strong>
+              </td>
+              <td style={{ textAlign: "right" }}>
+                <strong>+{order.delivery}</strong>
+              </td>
+            </tr>
+          )}
+
+          {/* DISCOUNT ROW */}
+          {order.discount > 0 && (
+            <tr>
+              <td colSpan={4} style={{ textAlign: "right" }}>
+                <strong>Discount:</strong>
+              </td>
+              <td style={{ textAlign: "right" }}>
+                <strong>-{order.discount}</strong>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
+      <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+        <PrintButton
+          order={order}
+          label="Print Invoice"
+          className="history-print-btn"
+        />
+      </div>
+    </>
+  )}
+</div>
+
               ))
             ) : (
               <p>No orders found for {filter.toLowerCase()}.</p>
