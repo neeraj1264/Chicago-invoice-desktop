@@ -1,7 +1,7 @@
 // constants
 const ORDER_KEY = "globalOrderNumber";
 const ORDER_LOCK_KEY = "globalOrderLock";
-const ORDER_START = 351;
+const ORDER_START = 567;
 
 /**
  * Simple synchronous incrementer.
