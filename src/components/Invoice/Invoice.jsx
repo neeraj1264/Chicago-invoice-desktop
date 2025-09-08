@@ -14,6 +14,7 @@ import {
   FaChevronDown,
   FaChevronUp,
   FaWhatsapp,
+  FaUtensils,
 } from "react-icons/fa";
 // import { AiOutlineBars } from "react-icons/ai";
 import { IoMdCloseCircle } from "react-icons/io";
@@ -85,6 +86,12 @@ const Invoice = () => {
   // Add new state variables
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [cashAmount, setCashAmount] = useState("");
+  const [upiAmount, setUpiAmount] = useState("");
+  const [delivery, setdelivery] = useState("");
+  const [discount, setDiscount] = useState("");
+
   const invoiceRef = useRef();
   const [customerInfo, setCustomerInfo] = useState(() => {
     try {
@@ -320,7 +327,7 @@ const Invoice = () => {
     // also restore the cart‑to‑send list
     const stored = JSON.parse(localStorage.getItem("productsToSend")) || [];
     setProductsToSend(stored);
-    localStorage.removeItem("deliveryCharge");
+    localStorage.removeItem("delivery");
 
     return () => {
       cancelled = true;
@@ -428,6 +435,25 @@ const Invoice = () => {
     setPhoneSuggestions(matches);
   }, [customerInfo.phone, savedCustomers]);
 
+  // Add useEffect to calculate the difference when one amount is entered
+  useEffect(() => {
+    if (paymentMethod === "partial") {
+      const subtotal = calculateTotalPrice(productsToSend);
+      const del = parseFloat(delivery) || 0;
+      const disc = parseFloat(discount) || 0;
+      const total = Math.max(0, subtotal + del - disc);
+      const cash = parseFloat(cashAmount) || 0;
+      // If cashAmount is an empty string we consider cash = 0 but keep cash input empty so placeholder shows
+      const remaining = Math.max(0, total - cash);
+      // store upi as a formatted string (two decimals) so UI shows consistent numbers
+      setUpiAmount(remaining.toFixed(2));
+    } else {
+      // clear when not partial
+      setCashAmount("");
+      setUpiAmount("");
+    }
+  }, [cashAmount, paymentMethod, productsToSend]);
+
   const handleSuggestionClick = (cust) => {
     setCustomerInfo({
       name: cust.name || "",
@@ -438,6 +464,27 @@ const Invoice = () => {
     if (phoneInputRef.current) {
       phoneInputRef.current.blur();
     }
+  };
+
+  // handlers for delivery and discount (numeric-only)
+  const handleDeliveryChange = (e) => {
+    const value = e.target.value;
+    if (value === "") {
+      setdelivery("");
+      return;
+    }
+    if (!/^\d*\.?\d*$/.test(value)) return;
+    setdelivery(value);
+  };
+
+  const handleDiscountChange = (e) => {
+    const value = e.target.value;
+    if (value === "") {
+      setDiscount("");
+      return;
+    }
+    if (!/^\d*\.?\d*$/.test(value)) return;
+    setDiscount(value);
   };
 
   const handleVarietyQuantityChange = (variety, delta, productId) => {
@@ -701,6 +748,11 @@ const Invoice = () => {
       const empty = { name: "", phone: "", address: "" };
       setCustomerInfo(empty);
       localStorage.removeItem("customerInfo");
+
+      // NEW: reset payment inputs for a fresh customer modal
+      setPaymentMethod("");
+      setCashAmount("");
+      setUpiAmount("");
     }
     // show customer modal
     setShowCustomerModal(true);
@@ -708,6 +760,31 @@ const Invoice = () => {
 
   const handleCustomerSubmit = async () => {
     setIsSaving(true);
+
+    // Validate payment method is selected
+    if (!paymentMethod) {
+      toast.error("Please select a payment method", toastOptions);
+      setIsSaving(false);
+      return;
+    }
+
+    const subtotal = calculateTotalPrice(productsToSend);
+    const del = parseFloat(delivery) || 0;
+    const disc = parseFloat(discount) || 0;
+    const total = Math.max(0, subtotal + del - disc);
+
+    // Validate partial amounts
+    if (paymentMethod === "partial") {
+      const cash = parseFloat(cashAmount) || 0;
+      const upi = parseFloat(upiAmount) || 0;
+
+      // exact match check (allow small floating error)
+      if (Math.abs(cash + upi - total) > 0.001) {
+        toast.error("Partial amounts must add up to the total", toastOptions);
+        setIsSaving(false);
+        return;
+      }
+    }
 
     try {
       const todayKey = new Date().toLocaleDateString();
@@ -745,12 +822,27 @@ const Invoice = () => {
         orderNumber: orderNumberToUse,
         billNumber: billNo,
         orderType,
+        delivery: del,
+        discount: disc,
         products: productsToSend,
-        totalAmount: calculateTotalPrice(productsToSend),
+        totalAmount: total,
         name: customerInfo.name,
         phone: customerInfo.phone,
         address: customerInfo.address,
         timestamp: new Date().toISOString(),
+        paymentMethod,
+        cashAmount:
+          paymentMethod === "cash"
+            ? total
+            : paymentMethod === "partial"
+            ? parseFloat(cashAmount) || 0
+            : 0,
+        upiAmount:
+          paymentMethod === "upi"
+            ? total
+            : paymentMethod === "partial"
+            ? parseFloat(upiAmount) || 0
+            : 0,
       };
       const customerData = {
         id: orderId,
@@ -796,18 +888,20 @@ const Invoice = () => {
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone,
         customerAddress: customerInfo.address,
+        delivery: del,
+        discount: disc,
       };
 
       if (orderType === "delivery") {
-        const next = [...deliveryBills, kotEntry];
+        const next = [kotEntry, ...deliveryBills];
         setDeliveryBills(next);
         localStorage.setItem("deliveryKotData", JSON.stringify(next));
       } else if (orderType === "dine-in") {
-        const next = [...dineInBills, kotEntry];
+        const next = [kotEntry, ...dineInBills];
         setDineInBills(next);
         localStorage.setItem("dineInKotData", JSON.stringify(next));
       } else if (orderType === "takeaway") {
-        const next = [...takeawayBills, kotEntry];
+        const next = [kotEntry, ...takeawayBills];
         setTakeawayBills(next);
         localStorage.setItem("takeawayKotData", JSON.stringify(next));
       }
@@ -815,6 +909,14 @@ const Invoice = () => {
       // Clear current productsToSend
       setProductsToSend([]);
       localStorage.removeItem("productsToSend");
+
+      // reset payment fields so next open is empty
+      setPaymentMethod("");
+      setCashAmount("");
+      setUpiAmount("");
+      setdelivery("");
+      setDiscount("");
+
       setShowCustomerModal(false);
       setPhoneSuggestions([]);
       const printArea = document.getElementById("sample-section");
@@ -879,6 +981,30 @@ display: none !important;
     } finally {
       setIsSaving(false); // End loading regardless of success/error
     }
+  };
+
+  // CASH input handler: allow empty string, numeric values; if greater than total show toast and cap to total
+  const handleCashChange = (e) => {
+    const value = e.target.value;
+    // allow empty
+    if (value === "") {
+      setCashAmount("");
+      return;
+    }
+
+    // allow only numeric/decimal input
+    if (!/^\d*\.?\d*$/.test(value)) return;
+
+    const num = parseFloat(value);
+    const total = calculateTotalPrice(productsToSend);
+    if (!isNaN(num) && num > total) {
+      toast.error("Cash cannot be greater than total", toastOptions);
+      // cap to total (keeps user flow smooth and avoids invalid state)
+      setCashAmount(total.toFixed(2));
+      return;
+    }
+
+    setCashAmount(value);
   };
 
   const handleCreateInvoice = (orderItems, type) => {
@@ -1000,6 +1126,82 @@ display: none !important;
     return sortByTopCategories(Object.keys(filteredProducts));
   }, [filteredProducts]);
 
+  const printKotFromOrder = (order) => {
+    try {
+      const items = order.items || order.products || [];
+
+      const header = `
+       <div style="text-align:center; font-weight:700; margin-bottom:8px;">
+         Bill No. ${order.billNo}
+       </div>
+       `;
+      const tableheader = `
+       <hr/>
+        <div class="product-item" style="display:flex; justify-content:space-between; margin-bottom:6px;">
+               <div style="width:60%; text-align:center;">Product Name</div>
+               <div style="width:20%; text-align:center;">Qty</div>
+               <div style="width:20%; text-align:center;">Price</div>
+            </div>
+            <hr/>
+     `;
+
+      const customerPart =
+        (order.customerName ? `<div>Name: ${order.customerName}</div>` : "") +
+        (order.customerPhone ? `<div>Phone: ${order.customerPhone}</div>` : "");
+
+      const ordertypee = `<div class="ordertypee"><hr/>${order.orderType}</div>`;
+      // Build items list — kitchen typically needs name + size + qty (no prices)
+
+      const itemsHtml = items
+        .map(
+          (it, idx) =>
+            `
+            <div class="product-item" style="display:flex; justify-content:space-between; margin-bottom:6px;">
+               <div style="width:60%; text-align:left;">${it.name}${
+              it.size ? ` (${it.size})` : ""
+            }</div>
+               <div style="width:20%; text-align:center;">${
+                 it.quantity || 1
+               }</div>
+               <div style="width:20%; text-align:center;">${
+                 it.price * it.quantity
+               }</div>
+            </div>`
+        )
+        .join("");
+
+      const style = `<style>
+       @page { size: 70mm 400mm; margin:0; }
+       @media print {
+         body{ width: 70mm !important; margin:0; padding:4mm; font-size:1rem; }
+         .product-item{ display:flex; justify-content:space-between; margin-bottom:1rem;}
+         .ordertypee{ font-size: 2rem; text-align: center;}
+       }
+     </style>`;
+
+      const printContent =
+        header + customerPart + tableheader + itemsHtml + ordertypee;
+
+      const win = window.open("", "", "width=600,height=600");
+      if (!win) {
+        toast.error(
+          "Unable to open print window (popup blocked).",
+          toastOptions
+        );
+        return;
+      }
+      win.document.write(
+        `<html><head><title>KOT Ticket</title>${style}</head><body>${printContent}</body></html>`
+      );
+      win.document.close();
+      win.focus();
+      win.print();
+      win.close();
+    } catch (err) {
+      console.error("printKotFromOrder error:", err);
+      toast.error("Unable to print KOT", toastOptions);
+    }
+  };
   return (
     <div>
       <ToastContainer />
@@ -1469,11 +1671,16 @@ display: none !important;
               ).map((order, idx) => {
                 const remaining = EXPIRY_MS - (now - order.timestamp);
 
+                const delivery = order.delivery ?? order.delivery ?? 0;
+                const discount = order.discount ?? order.discount ?? 0;
+
                 // Calculate total amount
-                const totalAmount = order.items.reduce(
+                const total = order.items.reduce(
                   (acc, item) => acc + item.price * item.quantity,
                   0
                 );
+                const totalAmount = total + delivery - discount;
+
                 return (
                   <div key={idx} className="kot-entry">
                     <h4 className="kot-timer">
@@ -1510,6 +1717,28 @@ display: none !important;
                         </>
                       ))}
                     </ul>
+                    {delivery > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span>Delivery:</span>
+                        <span>₹{delivery}</span>
+                      </div>
+                    )}
+                    {discount > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span>Discount:</span>
+                        <span>-₹{discount}</span>
+                      </div>
+                    )}
                     {/* Show total amount */}
                     <div className="kot-total">
                       <strong>Total </strong>
@@ -1542,6 +1771,20 @@ display: none !important;
                         title="Send via WhatsApp"
                       >
                         <FaWhatsapp style={{ fontSize: "1.5rem" }} />
+                      </button>
+                      {/* KOT (Kitchen) print button */}
+                      <button
+                        onClick={() => printKotFromOrder(order)}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "#333",
+                          marginLeft: "8px",
+                        }}
+                        title="Print KOT"
+                      >
+                        <FaUtensils style={{ fontSize: "1.4rem" }} />
                       </button>
                       <PrintButton
                         order={{
@@ -1738,84 +1981,154 @@ display: none !important;
           <div className="modal-contentt" onClick={(e) => e.stopPropagation()}>
             <h3>Customer Details</h3>
             {/* Loading overlay */}
-            {isSaving && (
-              <div className="loading-overlay">
-                <div className="loading-spinner"></div>
-                <p>Saving and printing KOT...</p>
-              </div>
-            )}
-            <input
-              type="text"
-              placeholder="Customer Name"
-              value={customerInfo.name}
-              onChange={(e) =>
-                setCustomerInfo({ ...customerInfo, name: e.target.value })
-              }
-              disabled={isSaving}
-            />
-            <input
-              type="text"
-              placeholder="Customer Phone"
-              value={customerInfo.phone}
-              onChange={handleCustomerPhoneChange}
-              disabled={isSaving}
-            />
-            {phoneSuggestions.length > 0 && (
-              <ul
-                className="suggestions"
-                style={{
-                  position: "relative",
-                  zIndex: 3000,
-                  background: "#fff",
-                  border: "1px solid #ddd",
-                  listStyle: "none",
-                  margin: "6px 0",
-                  padding: 0,
-                  width: "100%",
-                  maxHeight: "150px",
-                  overflowY: "auto",
-                  borderRadius: "8px",
-                }}
-              >
-                {phoneSuggestions.map((s) => (
-                  <li
-                    key={s.phone + (s.name || "")}
-                    onClick={() => handleSuggestionClick(s)}
-                    style={{
-                      padding: ".5rem",
-                      cursor: "pointer",
-                      borderBottom: "1px solid #f0f0f0",
-                    }}
-                  >
-                    <strong>{s.phone}</strong> — {s.name || "No name"}
-                    {s.address ? (
-                      <div style={{ fontSize: "0.9rem", color: "#666" }}>
-                        {s.address}
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <input
-              type="text"
-              placeholder="Customer Address"
-              value={customerInfo.address}
-              onChange={(e) =>
-                setCustomerInfo({ ...customerInfo, address: e.target.value })
-              }
-              disabled={isSaving}
-            />
-            <div className="modal-buttons">
-              <button
-                onClick={() => setShowCustomerModal(false)}
+            <div className="modal-body">
+              {isSaving && (
+                <div className="loading-overlay">
+                  <div className="loading-spinner"></div>
+                  <p>Saving and printing KOT...</p>
+                </div>
+              )}
+              <input
+                type="text"
+                placeholder="Customer Name"
+                value={customerInfo.name}
+                onChange={(e) =>
+                  setCustomerInfo({ ...customerInfo, name: e.target.value })
+                }
                 disabled={isSaving}
-              >
-                Cancel
-              </button>
-              <button onClick={handleCustomerSubmit} disabled={isSaving}>
-                {isSaving ? "Processing..." : "Save & Print KOT"}
-              </button>
+              />
+              <input
+                type="text"
+                placeholder="Customer Phone"
+                value={customerInfo.phone}
+                onChange={handleCustomerPhoneChange}
+                disabled={isSaving}
+              />
+              {phoneSuggestions.length > 0 && (
+                <ul
+                  className="suggestions"
+                  style={{
+                    position: "relative",
+                    zIndex: 3000,
+                    background: "#fff",
+                    border: "1px solid #ddd",
+                    listStyle: "none",
+                    margin: "6px 0",
+                    padding: 0,
+                    width: "100%",
+                    maxHeight: "150px",
+                    overflowY: "auto",
+                    borderRadius: "8px",
+                  }}
+                >
+                  {phoneSuggestions.map((s) => (
+                    <li
+                      key={s.phone + (s.name || "")}
+                      onClick={() => handleSuggestionClick(s)}
+                      style={{
+                        padding: ".5rem",
+                        cursor: "pointer",
+                        borderBottom: "1px solid #f0f0f0",
+                      }}
+                    >
+                      <strong>{s.phone}</strong> — {s.name || "No name"}
+                      {s.address ? (
+                        <div style={{ fontSize: "0.9rem", color: "#666" }}>
+                          {s.address}
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <input
+                type="text"
+                placeholder="Customer Address"
+                value={customerInfo.address}
+                onChange={(e) =>
+                  setCustomerInfo({ ...customerInfo, address: e.target.value })
+                }
+                disabled={isSaving}
+              />
+
+              {/* Delivery and Discount */}
+              <div className="form-row">
+                <input
+                  id="delivery"
+                  type="text"
+                  placeholder="Delivery"
+                  value={delivery}
+                  onChange={handleDeliveryChange}
+                  disabled={isSaving}
+                />
+                <input
+                  id="discount"
+                  type="text"
+                  placeholder="Discount"
+                  value={discount}
+                  onChange={handleDiscountChange}
+                  disabled={isSaving}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="paymentMethod">Payment Method *</label>
+                <select
+                  id="paymentMethod"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  disabled={isSaving}
+                  required
+                >
+                  <option value="">Select Payment Method</option>
+                  <option value="cash">Cash</option>
+                  <option value="upi">UPI</option>
+                  <option value="partial">Partial</option>
+                </select>
+              </div>
+
+              {/* When partial is selected show only a Cash field (editable). UPI is computed automatically and shown as read-only. */}
+              {paymentMethod === "partial" && (
+                <div className="partial-payment-fields">
+                  <div className="form-group">
+                    <label htmlFor="cashAmount">Cash Amount</label>
+                    <input
+                      id="cashAmount"
+                      type="text"
+                      placeholder="Enter cash amount"
+                      value={cashAmount}
+                      onChange={handleCashChange}
+                      disabled={isSaving}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>UPI Amount (auto)</label>
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="Enter upi amount"
+                      value={upiAmount}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="modal-buttons">
+                <button
+                  onClick={() => {
+                    setShowCustomerModal(false);
+                    setPaymentMethod("");
+                    setCashAmount("");
+                    setUpiAmount("");
+                  }}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+                <button onClick={handleCustomerSubmit} disabled={isSaving}>
+                  {isSaving ? "Processing..." : "Save & Print KOT"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
