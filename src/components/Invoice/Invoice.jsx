@@ -890,6 +890,7 @@ const Invoice = () => {
         customerAddress: customerInfo.address,
         delivery: del,
         discount: disc,
+        paymentMethod,
       };
 
       if (orderType === "delivery") {
@@ -1673,6 +1674,7 @@ display: none !important;
 
                 const delivery = order.delivery ?? order.delivery ?? 0;
                 const discount = order.discount ?? order.discount ?? 0;
+                const paymentType = order.paymentMethod;
 
                 // Calculate total amount
                 const total = order.items.reduce(
@@ -1684,13 +1686,13 @@ display: none !important;
                 return (
                   <div key={idx} className="kot-entry">
                     <h4 className="kot-timer">
-                      Bill Expire in <span>{formatRemaining(remaining)}</span>
+                     Bill No. {order.billNo}  <span>{formatRemaining(remaining)}</span>
                     </h4>
                     <h4>
-                      Bill No. {order.billNo}
+                      Order No. RT-{order.orderNo}
                       <span className="kot-date">{order.date}</span>
                     </h4>
-                    <h4>Order No. RT-{order.orderNo}</h4>
+                    <h4>Payment mode: {paymentType}</h4>
                     <h4>
                       {order.customerName && (
                         <p style={{ fontWeight: 700 }}>{order.customerName}</p>
@@ -1758,6 +1760,7 @@ display: none !important;
                             items: order.items || order.products || [],
                             delivery: order.delivery || 0,
                             discount: order.discount || 0,
+                            paymentMethod: order.paymentMethod || "",
                           };
                           const msg = formatOrderMessage(orderObj);
                           openWhatsApp(order.customerPhone, msg);
@@ -1796,6 +1799,7 @@ display: none !important;
                           phone: order.customerPhone,
                           address: order.customerAddress,
                           timestamp: order.timestamp,
+                          paymentMethod: order.paymentMethod || "",
                           delivery: order.delivery || 0,
                           discount: order.discount || 0,
                         }}

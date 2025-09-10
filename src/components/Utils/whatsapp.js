@@ -44,6 +44,7 @@ export function formatOrderMessage({
   items = [],
   delivery = 0,
   discount = 0,
+  paymentMethod,
 } = {}) {
   const list = products.length ? products : items;
   const lines = [];
@@ -51,6 +52,7 @@ export function formatOrderMessage({
   lines.push(`Bill-No: ${billNumber || "-"}`);
   lines.push(`Order-No: ${orderNumber ? `RT-${orderNumber}` : "-"}`);
   if (orderType) lines.push(`Order-Type: ${orderType}`);
+  if (paymentMethod) lines.push(`Payment-Type: ${paymentMethod}`);
   if (name) lines.push(`Name: ${name}`);
   if (phone) lines.push(`Phone: ${phone}`);
   if (address) lines.push(`Address: ${address}`);
