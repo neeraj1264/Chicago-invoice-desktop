@@ -417,13 +417,13 @@ const History = () => {
                           )}
 
                           {/* DISCOUNT ROW */}
-                          {order.discount > 0 && (
+                          {order.discountAmount > 0 && (
                             <tr>
                               <td colSpan={4} style={{ textAlign: "right" }}>
                                 <strong>Discount:</strong>
                               </td>
                               <td style={{ textAlign: "right" }}>
-                                <strong>-{order.discount}</strong>
+                                <strong>-{order.discountAmount}</strong>
                               </td>
                             </tr>
                           )}

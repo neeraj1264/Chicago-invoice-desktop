@@ -47,6 +47,7 @@ function buildMobileInvoiceHtml(order = {}) {
   const itemTotal = products.reduce((sum, p) => sum + (Number(p.price || 0) * (p.quantity || 1)), 0);
   const delivery = Number(order.delivery || 0) || 0;
   const discount = Number(order.discount || 0) || 0; // assume absolute amount
+  const discountPercentage = Number(order.discountPercentage || 0) || 0;
   const netTotal = itemTotal + delivery - discount;
 
   const html = `<!doctype html>
@@ -117,7 +118,7 @@ function buildMobileInvoiceHtml(order = {}) {
 
         ${(discount > 0) ? `
           <div class="total">
-            <p style="margin:0">Discount:</p>
+            <p style="margin:0">Discount:${discountPercentage}%</p>
             <p style="margin:0">–${discount.toFixed(2)}</p>
           </div>
         ` : ""}
