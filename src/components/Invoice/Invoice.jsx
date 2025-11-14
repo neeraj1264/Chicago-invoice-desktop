@@ -825,7 +825,7 @@ const total = Math.max(0, subtotal + del - discountAmount);
         orderType,
         delivery: del,
         discountPercentage: discPercentage,
-  discountAmount: discountAmount,
+  discount: discountAmount,
         products: productsToSend,
         totalAmount: total,
         name: customerInfo.name,
@@ -2087,9 +2087,9 @@ display: none !important;
     <option value="20">20%</option>
     <option value="25">25%</option>
     <option value="30">30%</option>
-    <option value="30">35%</option>
-    <option value="30">40%</option>
-    <option value="30">45%</option>
+    <option value="35">35%</option>
+    <option value="40">40%</option>
+    <option value="45">45%</option>
     <option value="50">50%</option>
   </select>
 </div>

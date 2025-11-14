@@ -417,13 +417,21 @@ const History = () => {
                           )}
 
                           {/* DISCOUNT ROW */}
-                          {order.discountAmount > 0 && (
+                          {(order.discountAmount > 0 || order.discount > 0) && (
                             <tr>
                               <td colSpan={4} style={{ textAlign: "right" }}>
-                                <strong>Discount:</strong>
+                                <strong>
+                                  Discount{" "}
+                                  {order.discountPercentage
+                                    ? `(${order.discountPercentage}%)`
+                                    : ""}
+                                  :
+                                </strong>
                               </td>
                               <td style={{ textAlign: "right" }}>
-                                <strong>-{order.discountAmount}</strong>
+                                <strong>
+                                  -{order.discountAmount || order.discount}
+                                </strong>
                               </td>
                             </tr>
                           )}
