@@ -769,10 +769,10 @@ const Invoice = () => {
     }
 
     const subtotal = calculateTotalPrice(productsToSend);
-const del = parseFloat(delivery) || 0;
-const discPercentage = parseFloat(discount) || 0;
-const discountAmount = (subtotal * discPercentage) / 100;
-const total = Math.max(0, subtotal + del - discountAmount);
+    const del = parseFloat(delivery) || 0;
+    const discPercentage = parseFloat(discount) || 0;
+    const discountAmount = (subtotal * discPercentage) / 100;
+    const total = Math.max(0, subtotal + del - discountAmount);
 
     // Validate partial amounts
     if (paymentMethod === "partial") {
@@ -825,7 +825,7 @@ const total = Math.max(0, subtotal + del - discountAmount);
         orderType,
         delivery: del,
         discountPercentage: discPercentage,
-  discount: discountAmount,
+        discount: discountAmount,
         products: productsToSend,
         totalAmount: total,
         name: customerInfo.name,
@@ -892,7 +892,7 @@ const total = Math.max(0, subtotal + del - discountAmount);
         customerAddress: customerInfo.address,
         delivery: del,
         discountPercentage: discPercentage,
-  discountAmount: discountAmount,
+        discountAmount: discountAmount,
         paymentMethod,
       };
 
@@ -1675,11 +1675,21 @@ display: none !important;
               ).map((order, idx) => {
                 const remaining = EXPIRY_MS - (now - order.timestamp);
 
-                  const delivery = order.delivery ?? 0;
-  // Use the new fields from the order object
-  const discountPercentage = order.discountPercentage ?? order.discount ?? 0;
-  const discountAmount = order.discountAmount ?? (order.discount ? (order.items.reduce((acc, item) => acc + item.price * item.quantity, 0) * order.discount / 100) : 0);
-  const paymentType = order.paymentMethod;
+                const delivery = order.delivery ?? 0;
+                // Use the new fields from the order object
+                const discountPercentage =
+                  order.discountPercentage ?? order.discount ?? 0;
+                const discountAmount =
+                  order.discountAmount ??
+                  (order.discount
+                    ? (order.items.reduce(
+                        (acc, item) => acc + item.price * item.quantity,
+                        0
+                      ) *
+                        order.discount) /
+                      100
+                    : 0);
+                const paymentType = order.paymentMethod;
 
                 // Calculate total amount
                 const total = order.items.reduce(
@@ -1691,7 +1701,8 @@ display: none !important;
                 return (
                   <div key={idx} className="kot-entry">
                     <h4 className="kot-timer">
-                     Bill No. {order.billNo}  <span>{formatRemaining(remaining)}</span>
+                      Bill No. {order.billNo}{" "}
+                      <span>{formatRemaining(remaining)}</span>
                     </h4>
                     <h4>
                       Order No. RT-{order.orderNo}
@@ -1735,12 +1746,17 @@ display: none !important;
                         <span>₹{delivery}</span>
                       </div>
                     )}
-                   {discountAmount > 0 && (
-  <div style={{ display: "flex", justifyContent: "space-between" }}>
-    <span>Discount ({discountPercentage}%):</span>
-    <span>-₹{discountAmount.toFixed(2)}</span>
-  </div>
-)}
+                    {discountAmount > 0 && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span>Discount ({discountPercentage}%):</span>
+                        <span>-₹{discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
                     {/* Show total amount */}
                     <div className="kot-total">
                       <strong>Total </strong>
@@ -2056,43 +2072,43 @@ display: none !important;
                 disabled={isSaving}
               />
 
-            {/* Delivery and Discount */}
-<div className="form-row">
-  <input
-    id="delivery"
-    type="text"
-    placeholder="Delivery"
-    value={delivery}
-    onChange={handleDeliveryChange}
-    disabled={isSaving}
-  />
-  
-  {/* Discount Percentage Dropdown */}
-  <select
-    id="discountPercentage"
-    value={discount}
-    onChange={(e) => setDiscount(e.target.value)}
-    disabled={isSaving}
-    style={{ 
-      padding: "0.75rem",
-      border: "1px solid #ddd",
-      borderRadius: "8px",
-      fontSize: "1rem"
-    }}
-  >
-    <option value="">No Discount</option>
-    <option value="5">5%</option>
-    <option value="10">10%</option>
-    <option value="15">15%</option>
-    <option value="20">20%</option>
-    <option value="25">25%</option>
-    <option value="30">30%</option>
-    <option value="35">35%</option>
-    <option value="40">40%</option>
-    <option value="45">45%</option>
-    <option value="50">50%</option>
-  </select>
-</div>
+              {/* Delivery and Discount */}
+              <div className="form-row">
+                <input
+                  id="delivery"
+                  type="text"
+                  placeholder="Delivery"
+                  value={delivery}
+                  onChange={handleDeliveryChange}
+                  disabled={isSaving}
+                />
+
+                {/* Discount Percentage Dropdown */}
+                <select
+                  id="discountPercentage"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  disabled={isSaving}
+                  style={{
+                    padding: "0.75rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    fontSize: "1rem",
+                  }}
+                >
+                  <option value="">No Discount</option>
+                  <option value="5">5%</option>
+                  <option value="10">10%</option>
+                  <option value="15">15%</option>
+                  <option value="20">20%</option>
+                  <option value="25">25%</option>
+                  <option value="30">30%</option>
+                  <option value="35">35%</option>
+                  <option value="40">40%</option>
+                  <option value="45">45%</option>
+                  <option value="50">50%</option>
+                </select>
+              </div>
 
               <div className="form-group">
                 <label htmlFor="paymentMethod">Payment Method *</label>
