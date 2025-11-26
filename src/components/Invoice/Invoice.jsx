@@ -26,8 +26,7 @@ import {
   setdata,
   sendorder,
 } from "../../api";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 import { IoClose } from "react-icons/io5";
 import { getAll, saveItems, addItem } from "../../DB";
 import { useOnlineStatus } from "../../useOnlineStatus";
@@ -37,14 +36,6 @@ import { getNextOrderNumber } from "../Utils/OrderNumber";
 import PrintButton from "../Utils/PrintButton";
 import { formatOrderMessage, openWhatsApp } from "../Utils/whatsapp";
 
-const toastOptions = {
-  position: "bottom-right",
-  autoClose: 2000,
-  pauseOnHover: true,
-  draggable: true,
-  theme: "dark",
-  width: "90%",
-};
 const BOGO_ELIGIBLE_PRODUCTS = {
   "Italian sweet": ["med", "large"],
   "Heat 'n' sweet": ["med", "large"],
@@ -91,8 +82,9 @@ const Invoice = () => {
   const [upiAmount, setUpiAmount] = useState("");
   const [delivery, setdelivery] = useState("");
   const [discount, setDiscount] = useState("");
-
+  const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const invoiceRef = useRef();
+  const [instructions, setInstructions] = useState("");
   const [customerInfo, setCustomerInfo] = useState(() => {
     try {
       return (
@@ -762,11 +754,12 @@ const Invoice = () => {
     setIsSaving(true);
 
     // Validate payment method is selected
-    if (!paymentMethod) {
-      toast.error("Please select a payment method", toastOptions);
-      setIsSaving(false);
-      return;
-    }
+
+    // if (!paymentMethod) {
+    //   toast.error("Please select a payment method");
+    //   setIsSaving(false);
+    //   return;
+    // }
 
     const subtotal = calculateTotalPrice(productsToSend);
     const del = parseFloat(delivery) || 0;
@@ -781,7 +774,7 @@ const Invoice = () => {
 
       // exact match check (allow small floating error)
       if (Math.abs(cash + upi - total) > 0.001) {
-        toast.error("Partial amounts must add up to the total", toastOptions);
+        toast.error("Partial amounts must add up to the total");
         setIsSaving(false);
         return;
       }
@@ -833,6 +826,7 @@ const Invoice = () => {
         address: customerInfo.address,
         timestamp: new Date().toISOString(),
         paymentMethod,
+        paymentStatus,
         cashAmount:
           paymentMethod === "cash"
             ? total
@@ -866,17 +860,17 @@ const Invoice = () => {
             // If server fails, save to IndexedDB instead
             await addItem("orders", orderData);
             await addItem("customers", customerData);
-            toast.info("You're offline - order saved locally", toastOptions);
+            toast.info("You're offline - order saved locally");
           }
         } else {
           // Offline - save to IndexedDB
           await addItem("orders", orderData);
           await addItem("customers", customerData);
-          toast.info("You're offline - data saved locally", toastOptions);
+          toast.info("You're offline - data saved locally");
         }
       } catch (error) {
         console.error("Error saving data:", error);
-        toast.error("Error saving data", toastOptions);
+        toast.error("Error saving data");
       }
 
       // Append current order snapshot
@@ -894,6 +888,8 @@ const Invoice = () => {
         discountPercentage: discPercentage,
         discountAmount: discountAmount,
         paymentMethod,
+        paymentStatus,
+        instructions: instructions,
       };
 
       if (orderType === "delivery") {
@@ -920,7 +916,7 @@ const Invoice = () => {
       setUpiAmount("");
       setdelivery("");
       setDiscount("");
-
+      setInstructions("");
       setShowCustomerModal(false);
       setPhoneSuggestions([]);
       const printArea = document.getElementById("sample-section");
@@ -935,11 +931,17 @@ Bill No. ${billNo}
 </div>
 `;
 
-      const printContent =
-        header +
-        (customerInfo.name ? `<div>Name: ${customerInfo.name}</div>` : "") +
-        (customerInfo.phone ? `<div>Phone: ${customerInfo.phone}</div>` : "") +
-        printArea.innerHTML;
+const instructionsPart = instructions
+  ? `<div class="instructions"><strong>Instructions:</strong> ${instructions}</div>`
+  : "";
+
+
+const printContent =
+  instructionsPart +
+  header +
+  (customerInfo.name ? `<div>Name: ${customerInfo.name}</div>` : "") +
+  (customerInfo.phone ? `<div>Phone: ${customerInfo.phone}</div>` : "") +
+  printArea.innerHTML;
 
       const win = window.open("", "", "width=600,height=400");
       const style = `<style>
@@ -978,10 +980,11 @@ display: none !important;
 
       const empty = { name: "", phone: "", address: "" };
       setCustomerInfo(empty);
+      setPaymentStatus("unpaid");
       localStorage.removeItem("customerInfo");
     } catch (error) {
       console.error("Error in KOT process:", error);
-      toast.error("Error processing KOT", toastOptions);
+      toast.error("Error processing KOT");
     } finally {
       setIsSaving(false); // End loading regardless of success/error
     }
@@ -1002,7 +1005,7 @@ display: none !important;
     const num = parseFloat(value);
     const total = calculateTotalPrice(productsToSend);
     if (!isNaN(num) && num > total) {
-      toast.error("Cash cannot be greater than total", toastOptions);
+      toast.error("Cash cannot be greater than total");
       // cap to total (keeps user flow smooth and avoids invalid state)
       setCashAmount(total.toFixed(2));
       return;
@@ -1134,6 +1137,11 @@ display: none !important;
     try {
       const items = order.items || order.products || [];
 
+const instructionsPart = order.instructions
+  ? `<div class="instructions">Instructions: ${order.instructions}</div>`
+  : "";
+
+
       const header = `
        <div style="text-align:center; font-weight:700; margin-bottom:8px;">
          Bill No. ${order.billNo}
@@ -1184,14 +1192,16 @@ display: none !important;
      </style>`;
 
       const printContent =
-        header + customerPart + tableheader + itemsHtml + ordertypee;
+        instructionsPart +
+        header +
+        customerPart +
+        tableheader +
+        itemsHtml +
+        ordertypee;
 
       const win = window.open("", "", "width=600,height=600");
       if (!win) {
-        toast.error(
-          "Unable to open print window (popup blocked).",
-          toastOptions
-        );
+        toast.error("Unable to open print window (popup blocked).");
         return;
       }
       win.document.write(
@@ -1203,12 +1213,33 @@ display: none !important;
       win.close();
     } catch (err) {
       console.error("printKotFromOrder error:", err);
-      toast.error("Unable to print KOT", toastOptions);
+      toast.error("Unable to print KOT");
     }
   };
+
+  // Function to update payment status
+  const updatePaymentStatus = (orderIndex, newStatus) => {
+    const updateBills = (bills, setBills, storageKey) => {
+      const updatedBills = bills.map((order, idx) =>
+        idx === orderIndex ? { ...order, paymentStatus: newStatus } : order
+      );
+      setBills(updatedBills);
+      localStorage.setItem(storageKey, JSON.stringify(updatedBills));
+    };
+
+    if (modalType === "delivery") {
+      updateBills(deliveryBills, setDeliveryBills, "deliveryKotData");
+    } else if (modalType === "dine-in") {
+      updateBills(dineInBills, setDineInBills, "dineInKotData");
+    } else if (modalType === "takeaway") {
+      updateBills(takeawayBills, setTakeawayBills, "takeawayKotData");
+    }
+
+    toast.success(`Payment status updated to ${newStatus}`);
+  };
+
   return (
     <div>
-      <ToastContainer />
       <Header
         headerName="Urban Pizzeria"
         setSearch={setSearch}
@@ -1396,10 +1427,7 @@ display: none !important;
                   if (isThursday) {
                     setBogoEnabled(!bogoEnabled);
                   } else {
-                    toast.error(
-                      "BOGO offer is only available on Thursdays",
-                      toastOptions
-                    );
+                    toast.error("BOGO offer is only available on Thursdays");
                   }
                 }}
                 disabled={!isThursday}
@@ -1690,7 +1718,7 @@ display: none !important;
                       100
                     : 0);
                 const paymentType = order.paymentMethod;
-
+                const paymentStatus = order.paymentStatus || "unpaid";
                 // Calculate total amount
                 const total = order.items.reduce(
                   (acc, item) => acc + item.price * item.quantity,
@@ -1699,7 +1727,20 @@ display: none !important;
                 const totalAmount = total + delivery - discountAmount;
 
                 return (
-                  <div key={idx} className="kot-entry">
+                  <div
+                    key={idx}
+                    className={`kot-entry ${
+                      paymentStatus === "unpaid" ? "unpaid-kot" : "paid-kot"
+                    }`}
+                    style={{
+                      backgroundColor:
+                        paymentStatus === "unpaid" ? "#ffebee" : "transparent",
+                      borderLeft:
+                        paymentStatus === "unpaid"
+                          ? "4px solid #f44336"
+                          : "4px solid #4caf50",
+                    }}
+                  >
                     <h4 className="kot-timer">
                       Bill No. {order.billNo}{" "}
                       <span>{formatRemaining(remaining)}</span>
@@ -1708,7 +1749,25 @@ display: none !important;
                       Order No. RT-{order.orderNo}
                       <span className="kot-date">{order.date}</span>
                     </h4>
-                    <h4>Payment mode: {paymentType}</h4>
+                    {/* <h4>Payment mode: {paymentType}</h4> */}
+                    {/* Payment Status Dropdown */}
+                    <div className="payment-status-control">
+                      <label>Payment Status:</label>
+                      <select
+                        value={paymentStatus}
+                        onChange={(e) =>
+                          updatePaymentStatus(idx, e.target.value)
+                        }
+                        className={`payment-status-badge ${
+                          paymentStatus === "unpaid"
+                            ? "status-unpaid-badge"
+                            : "status-paid-badge"
+                        }`}
+                      >
+                        <option value="unpaid">Unpaid</option>
+                        <option value="paid">Paid</option>
+                      </select>
+                    </div>
                     <h4>
                       {order.customerName && (
                         <p style={{ fontWeight: 700 }}>{order.customerName}</p>
@@ -1717,7 +1776,12 @@ display: none !important;
                         <p style={{ fontWeight: 700 }}>{order.customerPhone}</p>
                       )}
                     </h4>
-
+                      {/* Add this section to display instructions */}
+{order.instructions && (
+  <div className="kot-instructions">
+    <strong>Instructions:</strong> {order.instructions}
+  </div>
+)}
                     <hr />
                     <ul>
                       {order.items.map((item, i) => (
@@ -2071,7 +2135,6 @@ display: none !important;
                 }
                 disabled={isSaving}
               />
-
               {/* Delivery and Discount */}
               <div className="form-row">
                 <input
@@ -2109,8 +2172,41 @@ display: none !important;
                   <option value="50">50%</option>
                 </select>
               </div>
-
               <div className="form-group">
+                <label htmlFor="instructions">Instructions (for kitchen)</label>
+                <textarea
+                  id="instructions"
+                  placeholder="Special instructions for kitchen..."
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  disabled={isSaving}
+                  rows="3"
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    fontSize: "1rem",
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                  }}
+                />
+              </div>
+              {/* Payment Status Dropdown */}
+              <div className="form-group">
+                <label htmlFor="paymentStatus">Payment Status *</label>
+                <select
+                  id="paymentStatus"
+                  value={paymentStatus}
+                  onChange={(e) => setPaymentStatus(e.target.value)}
+                  disabled={isSaving}
+                  required
+                >
+                  <option value="unpaid">Unpaid</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </div>
+              {/* <div className="form-group">
                 <label htmlFor="paymentMethod">Payment Method *</label>
                 <select
                   id="paymentMethod"
@@ -2124,7 +2220,7 @@ display: none !important;
                   <option value="upi">UPI</option>
                   <option value="partial">Partial</option>
                 </select>
-              </div>
+              </div> */}
 
               {/* When partial is selected show only a Cash field (editable). UPI is computed automatically and shown as read-only. */}
               {paymentMethod === "partial" && (
@@ -2159,6 +2255,7 @@ display: none !important;
                     setPaymentMethod("");
                     setCashAmount("");
                     setUpiAmount("");
+                    setInstructions("");
                   }}
                   disabled={isSaving}
                 >

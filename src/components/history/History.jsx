@@ -291,7 +291,7 @@ const History = () => {
                   ))}
                 </select>
               </h2>
-              <div className="payment-totals">
+              {/* <div className="payment-totals">
                 <div className="cash-box">
                   <h3>
                     Cash:
@@ -304,7 +304,7 @@ const History = () => {
                     <span>₹{totalUpi}</span>
                   </h3>
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {filteredOrders.length > 0 ? (

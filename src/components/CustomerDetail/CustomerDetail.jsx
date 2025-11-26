@@ -7,20 +7,12 @@ import "./Customer.css";
 // import { handleScreenshotAsPDF } from "../Utils/DownloadPdf";
 import Header from "../header/Header";
 import { sendorder, setdata, fetchcustomerdata, fetchOrders } from "../../api";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 import { FaWhatsapp } from "react-icons/fa6";
 import { IoPrint } from "react-icons/io5";
 import { addItem, getAll, saveItems } from "../../DB";
 import PrintButton from "../Utils/PrintButton";
 
-const toastOptions = {
-  position: "bottom-right",
-  autoClose: 5000,
-  pauseOnHover: true,
-  draggable: true,
-  theme: "dark",
-};
 const CustomerDetail = () => {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -488,7 +480,7 @@ const CustomerDetail = () => {
 
   return (
     <div>
-      <ToastContainer />
+      
       <Header />
       <div className="cust-inputs" style={{ marginTop: "4rem" }}>
         <input
