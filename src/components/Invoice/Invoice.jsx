@@ -937,11 +937,12 @@ const instructionsPart = instructions
 
 
 const printContent =
-  instructionsPart +
   header +
   (customerInfo.name ? `<div>Name: ${customerInfo.name}</div>` : "") +
   (customerInfo.phone ? `<div>Phone: ${customerInfo.phone}</div>` : "") +
-  printArea.innerHTML;
+  printArea.innerHTML +
+  instructionsPart;
+
 
       const win = window.open("", "", "width=600,height=400");
       const style = `<style>
@@ -1138,7 +1139,7 @@ display: none !important;
       const items = order.items || order.products || [];
 
 const instructionsPart = order.instructions
-  ? `<div class="instructions">Instructions: ${order.instructions}</div>`
+  ? `<div class="instructions"><strong>Instructions:</strong> ${order.instructions}</div>`
   : "";
 
 
@@ -1192,12 +1193,12 @@ const instructionsPart = order.instructions
      </style>`;
 
       const printContent =
-        instructionsPart +
         header +
         customerPart +
         tableheader +
         itemsHtml +
-        ordertypee;
+        ordertypee +
+        instructionsPart;
 
       const win = window.open("", "", "width=600,height=600");
       if (!win) {

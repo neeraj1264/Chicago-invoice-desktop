@@ -84,7 +84,6 @@ function buildMobileInvoiceHtml(order = {}) {
           <p>Order No:&nbsp;&nbsp;<span style="font-weight:bold">RT_${escapeHtml(order.orderNumber || "")}</span></p>
           <p>Bill No:&nbsp;&nbsp;<span style="font-weight:bold">#${escapeHtml(order.billNumber || "")}</span></p>
           <p>OrderType&nbsp;:&nbsp;&nbsp;<span style="font-weight:bold">${escapeHtml(order.orderType || "")}</span></p>
-          <p>Payment Type: <span style="font-weight:bold">${escapeHtml(order.paymentMethod || "")}</span></p>
           <p>Date:&nbsp;&nbsp;&nbsp;&nbsp;${escapeHtml(formatDateTime(order.timestamp))}</p>
           ${order.name ? `<p>Customer&nbsp;:&nbsp;${escapeHtml(order.name)}</p>` : ""}
           ${order.phone ? `<p>Phone&nbsp;:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${escapeHtml(order.phone)}</p>` : ""}
