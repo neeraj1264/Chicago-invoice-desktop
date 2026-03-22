@@ -209,6 +209,54 @@ const History = () => {
     }
   };
 
+  
+  const getItemSalesSummary = () => {
+  const summary = {};
+
+  filteredOrders.forEach((order) => {
+    order.products.forEach((product) => {
+      const key = product.size
+        ? `${product.name} (${product.size})`
+        : product.name;
+
+      summary[key] =
+        (summary[key] || 0) + (product.quantity || 1);
+    });
+  });
+
+  return Object.entries(summary).sort((a, b) => b[1] - a[1]);
+};
+
+const getTopSellingItem = () => {
+  const summary = {};
+
+  filteredOrders.forEach((order) => {
+    order.products.forEach((product) => {
+      const key = product.size
+        ? `${product.name} (${product.size})`
+        : product.name;
+
+      if (!summary[key]) {
+        summary[key] = {
+          quantity: 0,
+          revenue: 0,
+        };
+      }
+
+      summary[key].quantity += product.quantity || 1;
+      summary[key].revenue +=
+        (product.price || 0) * (product.quantity || 1);
+    });
+  });
+
+  const sorted = Object.entries(summary).sort(
+    (a, b) => b[1].quantity - a[1].quantity
+  );
+
+  return sorted.length ? { name: sorted[0][0], ...sorted[0][1] } : null;
+};
+
+const topItem = getTopSellingItem();
   return (
     <div>
       <Header headerName="Order History" />
@@ -494,6 +542,45 @@ const History = () => {
               <p>No orders found for {filter.toLowerCase()}.</p>
             )}
           </div>
+
+          {topItem && (
+  <div className="best-seller-card">
+    <div className="trophy">🏆</div>
+
+    <div>
+      <div className="best-title">Best Seller ({filter})</div>
+
+      <div className="best-item">{topItem.name}</div>
+
+      <div className="best-stats">
+        Sold: {topItem.quantity} 
+      </div>
+    </div>
+  </div>
+)}
+
+<div className="item-sales-summary">
+  <div className="summary-header">
+    <h3>{filter} Item Sales Summary</h3>
+    <span className="summary-count">
+      {getItemSalesSummary().length} items sold
+    </span>
+  </div>
+
+  <div className="summary-list">
+    {getItemSalesSummary().map(([name, qty], index) => (
+      <div className="summary-row" key={name}>
+        <span className="rank">#{index + 1}</span>
+
+        <span className="item-name">{name}</span>
+
+        <span className="item-qty">{qty} sold</span>
+      </div>
+    ))}
+  </div>
+</div>
+
+
         </>
       )}
     </div>
