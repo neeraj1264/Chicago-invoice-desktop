@@ -125,6 +125,7 @@ function buildMobileInvoiceHtml(order = {}) {
         <p class="totalAmount">Net Total: ₹${netTotal.toFixed(2)}</p>
         <hr />
         <div style="text-align:center; font-size:15px; padding:.1rem 0 1rem;">Thank You Visit Again!</div>
+        <div style="text-align:center; font-size:12px; padding:.1rem 0 1rem;">Powered by BillZo 70158-23645</div>
       </div>
     </body>
   </html>`;
