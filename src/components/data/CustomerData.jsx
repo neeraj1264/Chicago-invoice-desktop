@@ -23,12 +23,12 @@ export const CustomerData = () => {
         const storedCustomers = await fetchcustomerdata();
         setCustomers(storedCustomers);
         setFilteredCustomers(storedCustomers);
-        await saveItems('customers', storedCustomers);
-      }catch {
-        const offline = await getAll('customers');
+        await saveItems("customers", storedCustomers);
+      } catch {
+        const offline = await getAll("customers");
         setCustomers(offline);
         setFilteredCustomers(offline);
-      }  finally {
+      } finally {
         setLoading(false);
       }
     };
@@ -52,7 +52,7 @@ export const CustomerData = () => {
         setOrders(ordersData);
         // await saveItems('orders', ordersData);
       } catch {
-        const offline = await getAll('orders');
+        const offline = await getAll("orders");
         setOrders(offline);
       }
     };
@@ -84,6 +84,12 @@ export const CustomerData = () => {
     return orders
       .filter((order) => String(order.phone) === String(phone))
       .reduce((sum, order) => sum + order.totalAmount, 0);
+  };
+
+  // Calculate total number of orders for a customer
+  const getNumberOfOrders = (phone) => {
+    return orders.filter((order) => String(order.phone) === String(phone))
+      .length;
   };
 
   // Toggle the expanded customer details (show order items grouped by date)
@@ -132,6 +138,10 @@ export const CustomerData = () => {
                       <strong>Address:</strong> {customer.address}
                     </p>
                     <p>
+                      <strong>Number of Orders:</strong>{" "}
+                      {getNumberOfOrders(customer.phone)}
+                    </p>
+                    <p>
                       <strong>Total Lifetime Spend:</strong> ₹
                       {getLifetimeOrderTotal(customer.phone).toFixed(2)}
                     </p>
@@ -142,14 +152,14 @@ export const CustomerData = () => {
                           // Filter orders for the current customer
                           const customerOrders = orders.filter(
                             (order) =>
-                              String(order.phone) === String(customer.phone)
+                              String(order.phone) === String(customer.phone),
                           );
 
                           // Group orders by the date (using local date string)
                           const ordersByDate = customerOrders.reduce(
                             (group, order) => {
                               const dateKey = new Date(
-                                order.timestamp
+                                order.timestamp,
                               ).toLocaleDateString();
                               if (!group[dateKey]) {
                                 group[dateKey] = [];
@@ -157,12 +167,12 @@ export const CustomerData = () => {
                               group[dateKey].push(order);
                               return group;
                             },
-                            {}
+                            {},
                           );
 
                           // Sort dates in descending order (newest first)
                           const sortedDates = Object.keys(ordersByDate).sort(
-                            (a, b) => new Date(b) - new Date(a)
+                            (a, b) => new Date(b) - new Date(a),
                           );
 
                           return sortedDates.map((date, idx) => {
@@ -171,7 +181,7 @@ export const CustomerData = () => {
                             // Calculate the total price for orders on this date
                             const totalOnDate = ordersOnDate.reduce(
                               (sum, order) => sum + order.totalAmount,
-                              0
+                              0,
                             );
 
                             return (
@@ -186,7 +196,7 @@ export const CustomerData = () => {
                                       <span className="time">
                                         Time:{" "}
                                         {new Date(
-                                          order.timestamp
+                                          order.timestamp,
                                         ).toLocaleTimeString()}
                                       </span>
                                       <ul>
@@ -195,7 +205,7 @@ export const CustomerData = () => {
                                             <li key={pIndex}>
                                               {pIndex + 1}. {product.name}
                                             </li>
-                                          )
+                                          ),
                                         )}
                                       </ul>
                                     </li>
